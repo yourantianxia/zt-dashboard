@@ -944,7 +944,7 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 ${(() => {
   const renderConcepts = (list, label, color) => `
     <div class="cd" style="margin-bottom:10px">
-      <div class="cd-h"><span class="ico">💡</span>推荐概念板块<span class="sub" style="background:${color};color:#fff;padding:2px 8px;border-radius:4px;font-size:13px">${label}</span></div>
+      <div class="cd-h"><span class="ico">💡</span>${label}</div>
       <div class="snap" style="grid-template-columns:repeat(3,1fr);padding:0 12px 12px">
         ${list.map(c => `
           <div class="snap-i" style="text-align:left;padding:12px 14px;cursor:default">
