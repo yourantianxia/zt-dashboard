@@ -253,24 +253,24 @@ function fetchCapitalFlow(codes) {
 }
 
 /**
- * 批量获取K线（用于判断连板数）
+ * 批量获取K线（支持日/周/月周期）
+ * @param {string[]} codes - 股票代码列表
+ * @param {number} limit - K线数量
+ * @param {string} period - 周期: day|week|month
  */
-function fetchKlines(codes, days = 8) {
+function fetchKlines(codes, limit = 8, period = 'day') {
   if (!codes.length) return {};
-  console.log(`📉 获取${codes.length}只股票K线...`);
+  console.log(`📉 获取${codes.length}只股票${period}K线...`);
   const result = {};
 
-  // K线批量有数量限制，分小批
   for (let i = 0; i < codes.length; i += 8) {
     const batch = codes.slice(i, i + 8);
     const output = runCli(
-      `node "${WESTOCK_DATA}" kline ${batch.join(',')} --period day --limit ${days}`,
+      `node "${WESTOCK_DATA}" kline ${batch.join(',')} --period ${period} --limit ${limit}`,
       45000
     );
-    // 批量K线输出格式：单表格含 symbol 列标识不同股票
     const rows = parseMdTable(output);
     for (const row of rows) {
-      // 字段名可能是 symbol 或 code
       const code = row.symbol || row.code || '';
       if (!code) continue;
       if (!result[code]) result[code] = [];
@@ -291,45 +291,148 @@ function fetchHotBoards() {
 
 /**
  * 获取推荐概念板块（热门概念 + 每概念3只代表股）
+ * 同时产出 A(严格版) + B(放宽版)
+ * 严格版：3天换手>20%、5日/5周线±3%、量比>1.2
+ * 放宽版：3天换手>12%、5日/5周线±5%、无量比要求
  */
 function fetchRecommendedConcepts() {
-  console.log('💡 获取推荐概念板块...');
+  console.log('💡 获取推荐概念板块 AB对比版...');
   const hotBoards = fetchHotBoards();
-  const concepts = [];
-  for (const board of hotBoards.slice(0, 6)) {
+
+  const strictConcepts = [];
+  const looseConcepts = [];
+  const strictCodes = new Set(); // 严格版已选股票，用于备选版去重
+
+  for (const board of hotBoards.slice(0, 12)) {
     const code = board.symbol || board.code || board.板块代码 || board['板块代码'];
     const name = board.name || board.板块名称 || board.名称 || board['板块名称'];
     if (!code || !name) continue;
-    const constituents = fetchSectorConstituents(code);
-    concepts.push({
+
+    // 如果两套都已满6个板块，提前结束
+    if (strictConcepts.length >= 6 && looseConcepts.length >= 6) break;
+
+    // 1. 获取板块成份股（上限100只控制性能）
+    let constituents = fetchSectorConstituents(code);
+    if (constituents.length > 100) {
+      console.log(`  ${name}: 成份股${constituents.length}只，截取前100只`);
+      constituents = constituents.slice(0, 100);
+    }
+    const candidateCodes = constituents.map(c =>
+      c.code || c.代码 || c['股票代码']
+    ).filter(Boolean);
+    if (candidateCodes.length === 0) continue;
+
+    // 2. 查quote获取名称、现价、当日涨幅、10日涨幅
+    const recQuotes = fetchQuotes(candidateCodes);
+    const quoteMap = {};
+    for (const q of recQuotes) {
+      if (q.code) {
+        quoteMap[q.code] = {
+          name: q.name || '',
+          price: safeFloat(q.price),
+          changePct: safeFloat(q.change_percent),
+          chg10d: safeFloat(q.chg_10d),
+        };
+      }
+    }
+
+    // 3. 按10日涨幅排序取前50，排除ST和当日涨幅>40%
+    const top50 = candidateCodes
+      .filter(c => {
+        const q = quoteMap[c];
+        if (!q) return false;
+        const n = q.name;
+        if (n.includes('ST') || n.includes('*ST')) return false;
+        if (q.changePct > 40) return false;
+        return true;
+      })
+      .sort((a, b) => (quoteMap[b]?.chg10d || 0) - (quoteMap[a]?.chg10d || 0))
+      .slice(0, 50);
+
+    if (top50.length === 0) {
+      console.log(`  ${name}: 无有效候选股`);
+      continue;
+    }
+
+    // 4. 查6日kline（算3天换手 + 5日均线）
+    const dayKlines = fetchKlines(top50, 6, 'day');
+    // 5. 查22周kline（算5/10/20周均线 + 周线多头判断）
+    const weekKlines = fetchKlines(top50, 22, 'week');
+
+    // 6. 预计算所有指标
+    const computed = [];
+    for (const c of top50) {
+      const q = quoteMap[c];
+      const dk = dayKlines[c] || [];
+      const wk = weekKlines[c] || [];
+      if (!q || dk.length < 5 || wk.length < 20) continue;
+
+      const turnover3d = dk.slice(0, 3).reduce((sum, d) => sum + safeFloat(d.exchange), 0);
+      const ma5  = dk.slice(0, 5).reduce((sum, d) => sum + safeFloat(d.last), 0) / 5;
+      const ma5w  = wk.slice(0, 5).reduce((sum, d) => sum + safeFloat(d.last), 0) / 5;
+      const ma10w = wk.slice(0, 10).reduce((sum, d) => sum + safeFloat(d.last), 0) / 10;
+      const ma20w = wk.slice(0, 20).reduce((sum, d) => sum + safeFloat(d.last), 0) / 20;
+
+      computed.push({
+        code: c,
+        name: q.name,
+        price: q.price,
+        changePct: q.changePct,
+        chg10d: q.chg10d,
+        turnover3d,
+        ma5,
+        ma5w,
+        ma10w,
+        ma20w,
+      });
+    }
+
+    // 7. 分别用两套配置过滤
+    function filterWithConfig(list, config) {
+      return list.filter(s => {
+        if (s.turnover3d < config.turnover3dMin) return false;
+        // 严格版：收盘价在5日线±2%以内
+        if (config.ma5DayTolerance !== null) {
+          const lo = s.ma5 * (1 - config.ma5DayTolerance);
+          const hi = s.ma5 * (1 + config.ma5DayTolerance);
+          if (s.price < lo || s.price > hi) return false;
+        }
+        // 周线多头排列: MA5周 > MA10周 > MA20周
+        if (s.ma5w <= s.ma10w || s.ma10w <= s.ma20w) return false;
+        return true;
+      }).sort((a, b) => b.turnover3d - a.turnover3d).slice(0, 6);
+    }
+
+    const strictResult = filterWithConfig(computed, {
+      turnover3dMin: 15, ma5DayTolerance: 0.02,
+    });
+    const looseResult = filterWithConfig(computed, {
+      turnover3dMin: 8, ma5DayTolerance: null,
+    });
+
+    const boardInfo = {
       name,
       code,
       changePct: safeFloat(board.zdf || board.changePct || board['涨跌幅'] || board['5日%'] || board['chg5Days']),
-      stocks: constituents.slice(0, 3).map(c => ({
-        name: c.name || c.名称 || c['股票名称'],
-        code: c.code || c.代码 || c['股票代码'],
-        changePct: 0,
-      })),
-    });
+    };
+
+    // 严格版：满6个板块后不再收集
+    if (strictConcepts.length < 6 && strictResult.length > 0) {
+      strictConcepts.push({ ...boardInfo, stocks: strictResult });
+      strictResult.forEach(s => strictCodes.add(s.code));
+    }
+
+    // 备选版：排除严格版已有股票，满6个板块后不再收集
+    const looseFiltered = looseResult.filter(s => !strictCodes.has(s.code));
+    if (looseConcepts.length < 6 && looseFiltered.length > 0) {
+      looseConcepts.push({ ...boardInfo, stocks: looseFiltered });
+    }
+
+    console.log(`  ${name}: ${computed.length}只候选 → 严格${strictResult.length}只 / 备选${looseFiltered.length}只(原${looseResult.length})`);
   }
 
-  // 统一查询推荐股票的涨跌幅
-  const allRecCodes = concepts.flatMap(c => c.stocks.map(s => s.code)).filter(Boolean);
-  if (allRecCodes.length > 0) {
-    const recQuotes = fetchQuotes(allRecCodes);
-    const quoteMap = {};
-    for (const q of recQuotes) {
-      if (q.code) quoteMap[q.code] = safeFloat(q.change_percent);
-    }
-    for (const c of concepts) {
-      for (const s of c.stocks) {
-        if (quoteMap[s.code] !== undefined) s.changePct = quoteMap[s.code];
-      }
-    }
-  }
-
-  console.log(`  推荐概念板块: ${concepts.length} 个`);
-  return concepts;
+  console.log(`  推荐概念板块: 严格${strictConcepts.length}个 / 备选${looseConcepts.length}个`);
+  return { strict: strictConcepts, loose: looseConcepts };
 }
 
 /**
@@ -685,7 +788,7 @@ function analyzeData(limitUpCodes, quotes, profiles, capitalFlows, klines, secto
 // ============ HTML生成 ============
 
 function generateHTML(data) {
-  const { stockMap, ladderMap, industryHeat, industryFlowRank, activeStocksByIndustry, marketDist, sectorRankings, lhbCodes, generatedAt, tradingDate, recommendedConcepts } = data;
+  const { stockMap, ladderMap, industryHeat, industryFlowRank, activeStocksByIndustry, marketDist, sectorRankings, lhbCodes, generatedAt, tradingDate, recommendedConcepts, recommendedConceptsLoose } = data;
 
   const totalLimitUp = Object.keys(stockMap).length;
   const limitDown = marketDist.summary?.跌停 || '-';
@@ -708,6 +811,7 @@ function generateHTML(data) {
   function pct(v) { return safeFloat(v).toFixed(2); }
   function pctClass(v) { return safeFloat(v) >= 0 ? 'up' : 'dn'; }
   function flowClass(v) { return v >= 0 ? 'up' : 'dn'; }
+  function stockLink(code) { return `https://quote.eastmoney.com/${code}.html`; }
 
   // 连板核心表 - 合并所有层级，用颜色区分
   const allStocksSorted = Object.values(stockMap)
@@ -781,6 +885,8 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 
 /* 行业标签 */
 .tag-i{display:inline-block;padding:2px 10px;border-radius:4px;font-size:14px;background:#e6f7ff;color:var(--blue);font-weight:500}
+.stock-link{color:var(--t1);text-decoration:none;border-bottom:1px dashed var(--blue);cursor:pointer}
+.stock-link:hover{color:var(--blue);border-bottom-style:solid}
 
 /* Tab */
 .tabs{display:flex;gap:0;border-bottom:2px solid var(--bdr);background:#fafafa}
@@ -835,24 +941,45 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 </div>
 
 <!-- 推荐概念板块 -->
-<div class="snap" style="grid-template-columns:repeat(3,1fr)">
-  ${(recommendedConcepts || []).map(c => `
-    <div class="snap-i" style="text-align:left;padding:12px 14px;cursor:default">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-        <span style="font-size:15px;font-weight:700;color:var(--t1)">${c.name}</span>
-        <span class="up" style="font-size:15px;font-weight:700">${pct(c.changePct)}%</span>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:3px">
-        ${c.stocks.map(s => `
-          <div style="display:flex;justify-content:space-between;font-size:14px;color:var(--t2)">
-            <span>${s.name} <span class="c" style="font-size:12px">${s.code}</span></span>
-            <span class="${pctClass(s.changePct)}">${pct(s.changePct)}%</span>
+${(() => {
+  const renderConcepts = (list, label, color) => `
+    <div class="cd" style="margin-bottom:10px">
+      <div class="cd-h"><span class="ico">💡</span>推荐概念板块<span class="sub" style="background:${color};color:#fff;padding:2px 8px;border-radius:4px;font-size:13px">${label}</span></div>
+      <div class="snap" style="grid-template-columns:repeat(3,1fr);padding:0 12px 12px">
+        ${list.map(c => `
+          <div class="snap-i" style="text-align:left;padding:12px 14px;cursor:default">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+              <span style="font-size:15px;font-weight:700;color:var(--t1)">${c.name}</span>
+              <span class="up" style="font-size:15px;font-weight:700">${pct(c.changePct)}%</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px">
+              ${c.stocks.map(s => {
+                const d5 = s.ma5 > 0 ? ((s.price - s.ma5) / s.ma5 * 100).toFixed(2) : '0.00';
+                const w5 = s.ma5w > 0 ? ((s.price - s.ma5w) / s.ma5w * 100).toFixed(2) : '0.00';
+                return `<div style="display:flex;justify-content:space-between;align-items:center;font-size:14px">
+                  <a class="stock-link" href="${stockLink(s.code)}" target="_blank" style="color:var(--t1);font-weight:600">${s.name}</a>
+                  <span class="${pctClass(s.changePct)}">${pct(s.changePct)}%</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--t3);margin-bottom:4px;padding-left:4px;border-left:2px solid var(--bdr)">
+                  <span class="c">${s.code}</span>
+                  <span>
+                    <span style="margin-right:8px">10日<span class="${pctClass(s.chg10d)}">${pct(s.chg10d)}%</span></span>
+                    <span style="margin-right:8px">3日换手<span style="color:var(--purple);font-weight:600">${pct(s.turnover3d)}%</span></span>
+                    <span style="margin-right:8px">5日<span class="${pctClass(d5)}">${d5}%</span></span>
+                    <span style="margin-right:8px">5周<span class="${pctClass(w5)}">${w5}%</span></span>
+                    <span style="color:var(--dn);font-weight:600">周线多头</span>
+                  </span>
+                </div>`;
+              }).join('')}
+            </div>
           </div>
         `).join('')}
       </div>
     </div>
-  `).join('')}
-</div>
+  `;
+  return ((recommendedConcepts || []).length > 0 ? renderConcepts(recommendedConcepts, '推荐概念板块', '#cf1322') : '')
+       + ((recommendedConceptsLoose || []).length > 0 ? renderConcepts(recommendedConceptsLoose, '备选概念板块', '#d46b08') : '');
+})()}
 
 <!-- 连板王 -->
 ${(ladderMap['5+'] || []).length > 0 || (ladderMap['4'] || []).length > 0 || (ladderMap['3'] || []).length > 0 ? `
@@ -864,57 +991,12 @@ ${(ladderMap['5+'] || []).length > 0 || (ladderMap['4'] || []).length > 0 || (la
       .map(s => {
         const lv = s.consecutiveLimit >= 5 ? 'lv5' : s.consecutiveLimit === 4 ? 'lv4' : 'lv3';
         return `<div class="king-c ${lv}">
-          <div class="kn">${s.name} <span class="up">${s.consecutiveLimit}连板</span></div>
+          <div class="kn"><a class="stock-link" href="${stockLink(s.code)}" target="_blank">${s.name}</a> <span class="up">${s.consecutiveLimit}连板</span></div>
           <div class="km">${s.code} · ${s.industry} · ${pct(s.changePct)}% · 换手${pct(s.turnoverRate)}% ${strengthBadge(s.limitUpStrength)}${s.limitUpStrength}</div>
         </div>`;
       }).join('')}
   </div>
 </div>` : ''}
-
-<!-- 涨停详表 -->
-<div class="cd">
-  <div class="cd-h"><span class="ico">🔥</span>涨停板全景<span class="sub">共 ${totalLimitUp} 只 · 按连板+强度排序</span></div>
-  <div>
-    <div class="tabs" id="lt">
-      ${ladderLevels.map((l, i) => `<div class="tab ${i===0?'on':''}" data-v="${l}" onclick="sw('${l}')">${l==='5+'?'5板+':l+'板'}(${ladderCounts[i]})</div>`).join('')}
-    </div>
-    ${ladderLevels.map((l, i) => {
-      const stocks = (ladderMap[l] || []).sort((a,b) => b.limitUpStrength - a.limitUpStrength);
-      return `<div class="tpanel ${i===0?'on':''}" id="p-${l}">
-        <div class="scr">
-          <table class="tb">
-            <thead><tr>
-              <th>#</th><th>连板</th><th>代码</th><th>名称</th><th>行业</th>
-              <th>涨跌幅</th><th>现价</th><th>换手率</th><th>量比</th>
-              <th>主力净流入</th><th>超大单</th><th>流通市值</th><th>PE</th><th>强度</th>
-            </tr></thead>
-            <tbody>
-              ${stocks.map((s, idx) => {
-                const barCls = Math.min(s.consecutiveLimit, 5);
-                return `<tr>
-                  <td>${idx+1}</td>
-                  <td><span class="bar bar-${barCls}"></span><b>${s.consecutiveLimit}</b></td>
-                  <td class="c">${s.code}</td>
-                  <td class="b">${s.name}</td>
-                  <td><span class="tag-i">${s.industry||'-'}</span></td>
-                  <td class="up">${pct(s.changePct)}%</td>
-                  <td>${pct(s.price)}</td>
-                  <td>${pct(s.turnoverRate)}%</td>
-                  <td>${pct(s.volumeRatio)}</td>
-                  <td class="${flowClass(s.mainNetFlow)}">${fc(s.mainNetFlow)}</td>
-                  <td class="${flowClass(s.jumboNetFlow)}">${fc(s.jumboNetFlow)}</td>
-                  <td>${fc(s.floatMv)}</td>
-                  <td>${s.pe>0?pct(s.pe):'-'}</td>
-                  <td>${strengthBadge(s.limitUpStrength)} <span class="m">${s.limitUpStrength}</span></td>
-                </tr>`;
-              }).join('')}
-            </tbody>
-          </table>
-        </div>
-      </div>`;
-    }).join('')}
-  </div>
-</div>
 
 <!-- 双列：行业热度 + 资金流向 -->
 <div class="g2">
@@ -932,7 +1014,7 @@ ${(ladderMap['5+'] || []).length > 0 || (ladderMap['4'] || []).length > 0 || (la
             <td class="b">${ind.name}</td>
             <td class="up b" style="font-size:18px">${ind.limitCount}</td>
             <td class="${flowClass(ind.mainNetFlow)}">${fc(ind.mainNetFlow)}</td>
-            <td class="m">${ts.map(s=>s.name).join('、')}</td>
+            <td class="m">${ts.map(s=>`<a class="stock-link" href="${stockLink(s.code)}" target="_blank">${s.name}</a>`).join('、')}</td>
           </tr>`;
         }).join('')}
       </tbody>
@@ -953,7 +1035,7 @@ ${(ladderMap['5+'] || []).length > 0 || (ladderMap['4'] || []).length > 0 || (la
             <td class="b">${ind.name}</td>
             <td class="${flowClass(ind.mainNetFlow)} b" style="font-size:16px">${fc(ind.mainNetFlow)}</td>
             <td class="up">${ind.limitCount}</td>
-            <td class="m">${ts.map(s=>s.name).join('、')}</td>
+            <td class="m">${ts.map(s=>`<a class="stock-link" href="${stockLink(s.code)}" target="_blank">${s.name}</a>`).join('、')}</td>
           </tr>`;
         }).join('')}
       </tbody>
@@ -996,7 +1078,7 @@ ${(ladderMap['5+'] || []).length > 0 || (ladderMap['4'] || []).length > 0 || (la
           <span class="up" style="font-size:14px">${ind.limitCount}只涨停</span>
         </div>
         ${stocks.map(s => `<div class="act-row">
-          <span class="b">${s.name}</span>
+          <a class="stock-link b" href="${stockLink(s.code)}" target="_blank">${s.name}</a>
           <span>
             <span class="up">${pct(s.changePct)}%</span>
             ${strengthBadge(s.limitUpStrength)}
@@ -1008,6 +1090,51 @@ ${(ladderMap['5+'] || []).length > 0 || (ladderMap['4'] || []).length > 0 || (la
   </div>
 </div>
 
+</div>
+
+<!-- 涨停详表 -->
+<div class="cd">
+  <div class="cd-h"><span class="ico">🔥</span>涨停板全景<span class="sub">共 ${totalLimitUp} 只 · 按连板+强度排序</span></div>
+  <div>
+    <div class="tabs" id="lt">
+      ${ladderLevels.map((l, i) => `<div class="tab ${i===0?'on':''}" data-v="${l}" onclick="sw('${l}')">${l==='5+'?'5板+':l+'板'}(${ladderCounts[i]})</div>`).join('')}
+    </div>
+    ${ladderLevels.map((l, i) => {
+      const stocks = (ladderMap[l] || []).sort((a,b) => b.limitUpStrength - a.limitUpStrength);
+      return `<div class="tpanel ${i===0?'on':''}" id="p-${l}">
+        <div class="scr">
+          <table class="tb">
+            <thead><tr>
+              <th>#</th><th>连板</th><th>代码</th><th>名称</th><th>行业</th>
+              <th>涨跌幅</th><th>现价</th><th>换手率</th><th>量比</th>
+              <th>主力净流入</th><th>超大单</th><th>流通市值</th><th>PE</th><th>强度</th>
+            </tr></thead>
+            <tbody>
+              ${stocks.map((s, idx) => {
+                const barCls = Math.min(s.consecutiveLimit, 5);
+                return `<tr>
+                  <td>${idx+1}</td>
+                  <td><span class="bar bar-${barCls}"></span><b>${s.consecutiveLimit}</b></td>
+                  <td class="c"><a class="stock-link" href="${stockLink(s.code)}" target="_blank">${s.code}</a></td>
+                  <td class="b"><a class="stock-link" href="${stockLink(s.code)}" target="_blank">${s.name}</a></td>
+                  <td><span class="tag-i">${s.industry||'-'}</span></td>
+                  <td class="up">${pct(s.changePct)}%</td>
+                  <td>${pct(s.price)}</td>
+                  <td>${pct(s.turnoverRate)}%</td>
+                  <td>${pct(s.volumeRatio)}</td>
+                  <td class="${flowClass(s.mainNetFlow)}">${fc(s.mainNetFlow)}</td>
+                  <td class="${flowClass(s.jumboNetFlow)}">${fc(s.jumboNetFlow)}</td>
+                  <td>${fc(s.floatMv)}</td>
+                  <td>${s.pe>0?pct(s.pe):'-'}</td>
+                  <td>${strengthBadge(s.limitUpStrength)} <span class="m">${s.limitUpStrength}</span></td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>
 </div>
 
 <!-- 强度评价体系 -->
@@ -1061,8 +1188,8 @@ async function main() {
     const limitUpCodes = limitUpStocks.map(s => s.code);
     console.log(`  找到 ${limitUpCodes.length} 只涨停板股票\n`);
 
-    // 获取推荐概念板块（无论有无涨停都获取）
-    const recommendedConcepts = fetchRecommendedConcepts();
+    // 获取推荐概念板块 AB版（同时产出严格+放宽）
+    const { strict: recStrict, loose: recLoose } = fetchRecommendedConcepts();
 
     if (limitUpCodes.length === 0) {
       console.log('⚠️ 今日无涨停板数据，生成空看板...');
@@ -1076,7 +1203,8 @@ async function main() {
         marketDist,
         sectorRankings: { sw1: [], industry: [] },
         lhbCodes: [],
-        recommendedConcepts,
+        recommendedConcepts: recStrict,
+        recommendedConceptsLoose: recLoose,
         generatedAt: new Date().toISOString(),
         tradingDate: new Date().toISOString().split('T')[0],
       };
@@ -1090,7 +1218,7 @@ async function main() {
     const quotes = fetchQuotes(limitUpCodes);
     const profiles = fetchProfiles(limitUpCodes);
     const capitalFlows = fetchCapitalFlow(limitUpCodes);
-    const klines = fetchKlines(limitUpCodes, 8);
+    const klines = fetchKlines(limitUpCodes, 8, 'day');
 
     // Step 4: 获取板块排行
     const sectorRankings = fetchSectorRankings();
@@ -1103,7 +1231,8 @@ async function main() {
       limitUpCodes, quotes, profiles, capitalFlows,
       klines, sectorRankings, lhb, marketDist
     );
-    analysis.recommendedConcepts = recommendedConcepts;
+    analysis.recommendedConcepts = recStrict;
+    analysis.recommendedConceptsLoose = recLoose;
 
     // Step 7: 保存数据备份
     fs.writeFileSync(DATA_FILE, JSON.stringify(analysis, null, 2), 'utf-8');
