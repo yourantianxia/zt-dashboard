@@ -1,0 +1,1667 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>涨停板全景看板 2026-05-15</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#f5f5f7;--card:#fff;--bdr:#e5e5e5;
+  --t1:#1d1d1f;--t2:#6e6e73;--t3:#aeaeb2;
+  --up:#cf1322;--dn:#389e0d;
+  --bg-up:#fff1f0;--bg-dn:#f6ffed;
+  --blue:#1677ff;--orange:#d46b08;--purple:#531dab;--gold:#d48806;
+}
+html{font-size:16px;-webkit-font-smoothing:antialiased}
+body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--t1);line-height:1.4}
+.wrap{max-width:1480px;margin:0 auto;padding:10px 14px}
+
+/* === 头部 === */
+.hdr{background:linear-gradient(135deg,#1d1d1f 0%,#2c2c2e 100%);color:#fff;border-radius:10px;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+.hdr h1{font-size:24px;font-weight:800;letter-spacing:2px}
+.hdr .meta{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.hdr .tag{background:rgba(255,255,255,.1);padding:5px 14px;border-radius:6px;font-size:15px;font-weight:600}
+.t-up{color:#ff7875!important}.t-dn{color:#95de64!important}.t-gd{color:#ffd666!important}
+
+/* === 连板快照 === */
+.snap{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:10px 0}
+.snap-i{background:var(--card);border-radius:8px;padding:10px 8px;text-align:center;box-shadow:0 1px 2px rgba(0,0,0,.06);border:1px solid var(--bdr);cursor:pointer;transition:all .15s}
+.snap-i:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.1)}
+.snap-i .lbl{font-size:15px;color:var(--t2);font-weight:500}
+.snap-i .num{font-size:36px;font-weight:900;color:var(--up);line-height:1.1}
+.snap-i .unit{font-size:13px;color:var(--t3)}
+.snap-i.lv5 .num{color:var(--gold)}
+.snap-i.lv4 .num{color:var(--purple)}
+.snap-i.lv3 .num{color:var(--up)}
+.snap-i.lv2 .num{color:var(--orange)}
+
+/* === 卡片 === */
+.cd{background:var(--card);border-radius:8px;box-shadow:0 1px 2px rgba(0,0,0,.06);border:1px solid var(--bdr);margin-bottom:10px;overflow:hidden}
+.cd-h{padding:10px 16px;font-size:18px;font-weight:700;border-bottom:1px solid var(--bdr);display:flex;align-items:center;gap:8px;background:#fafafa}
+.cd-h .ico{font-size:20px}
+.cd-h .sub{margin-left:auto;font-size:13px;color:var(--t3);font-weight:400}
+
+/* === 表格 === */
+.tb{width:100%;border-collapse:collapse;font-size:15px}
+.tb th{background:#f0f0f2;padding:8px 10px;text-align:left;font-weight:600;font-size:14px;color:var(--t2);white-space:nowrap;position:sticky;top:0;z-index:2}
+.tb td{padding:7px 10px;border-bottom:1px solid #f0f0f0;white-space:nowrap;font-size:15px}
+.tb tr:hover td{background:#f8f8fa}
+.tb .c{color:var(--blue);font-family:Consolas,monospace;font-size:14px}
+.tb .up{color:var(--up);font-weight:700}
+.tb .dn{color:var(--dn);font-weight:700}
+.tb .b{font-weight:700}
+.tb .m{color:var(--t3);font-size:13px}
+
+/* 强度徽章 */
+.badge{display:inline-block;padding:2px 10px;border-radius:4px;font-weight:800;font-size:14px;letter-spacing:1px}
+.badge-s{background:linear-gradient(135deg,#ff4d4f,#cf1322);color:#fff}
+.badge-a{background:linear-gradient(135deg,#ff7a45,#d46b08);color:#fff}
+.badge-b{background:linear-gradient(135deg,#8c8c8c,#595959);color:#fff}
+.badge-c{background:#f0f0f0;color:#8c8c8c}
+
+/* 连板色条 */
+.bar{display:inline-block;width:4px;height:20px;border-radius:2px;margin-right:6px;vertical-align:middle}
+.bar-1{background:#d9d9d9}.bar-2{background:#ff7a45}.bar-3{background:#cf1322}.bar-4{background:#531dab}.bar-5{background:#d48806}
+
+/* 行业标签 */
+.tag-i{display:inline-block;padding:2px 10px;border-radius:4px;font-size:14px;background:#e6f7ff;color:var(--blue);font-weight:500}
+
+/* Tab */
+.tabs{display:flex;gap:0;border-bottom:2px solid var(--bdr);background:#fafafa}
+.tab{padding:9px 18px;cursor:pointer;font-size:16px;font-weight:600;color:var(--t2);border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .15s}
+.tab:hover{color:var(--t1)}
+.tab.on{color:var(--up);border-bottom-color:var(--up)}
+.tpanel{display:none}.tpanel.on{display:block}
+
+/* 双列 */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+/* 滚动 */
+.scr{max-height:560px;overflow-y:auto}
+.scr::-webkit-scrollbar{width:5px}
+.scr::-webkit-scrollbar-thumb{background:#d9d9d9;border-radius:3px}
+
+/* 页脚 */
+.ftr{text-align:center;padding:14px;font-size:13px;color:var(--t3)}
+.ftr .warn{background:#fffbe6;color:#d48806;padding:8px 16px;border-radius:6px;margin-bottom:6px;font-size:13px;font-weight:500}
+
+/* 活跃个股 */
+.act-item{padding:8px 14px;border-bottom:1px solid #f5f5f5}
+.act-item:last-child{border-bottom:none}
+.act-row{display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:15px}
+
+/* 连板王卡片 */
+.king{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;padding:12px}
+.king-c{background:#fafafa;border-radius:8px;padding:10px 14px;border-left:4px solid var(--up)}
+.king-c .kn{font-size:18px;font-weight:800}.king-c .km{font-size:13px;color:var(--t2);margin-top:2px}
+.king-c.lv5{border-left-color:var(--gold);background:#fffbe6}
+.king-c.lv4{border-left-color:var(--purple);background:#f9f0ff}
+.king-c.lv3{border-left-color:var(--up);background:#fff1f0}
+.king-c.lv2{border-left-color:var(--orange);background:#fff7e6}
+
+@media(max-width:900px){.g2{grid-template-columns:1fr}.snap{grid-template-columns:repeat(3,1fr)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- 头部 -->
+<div class="hdr">
+  <h1>📊 涨停板全景看板</h1>
+  <div class="meta">
+    <span class="tag">📅 2026-05-15</span>
+    <span class="tag t-up">涨停 55</span>
+    <span class="tag t-dn">跌停 15</span>
+    <span class="tag">上涨 1591</span>
+    <span class="tag">下跌 3278</span>
+    <span class="tag t-gd">🔄 05:05</span>
+  </div>
+</div>
+
+<!-- 推荐概念板块 -->
+<div class="snap" style="grid-template-columns:repeat(3,1fr)">
+  
+    <div class="snap-i" style="text-align:left;padding:12px 14px;cursor:default">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span style="font-size:15px;font-weight:700;color:var(--t1)">人形机器人</span>
+        <span class="up" style="font-size:15px;font-weight:700">1.79%</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:3px">
+        
+          <div style="display:flex;justify-content:space-between;font-size:14px;color:var(--t2)">
+            <span>奕东电子 <span class="c" style="font-size:12px">sz301123</span></span>
+            <span class="up">1.60%</span>
+          </div>
+        
+          <div style="display:flex;justify-content:space-between;font-size:14px;color:var(--t2)">
+            <span>信宇人 <span class="c" style="font-size:12px">sh688573</span></span>
+            <span class="up">0.63%</span>
+          </div>
+        
+          <div style="display:flex;justify-content:space-between;font-size:14px;color:var(--t2)">
+            <span>世运电路 <span class="c" style="font-size:12px">sh603920</span></span>
+            <span class="up">0.98%</span>
+          </div>
+        
+      </div>
+    </div>
+  
+    <div class="snap-i" style="text-align:left;padding:12px 14px;cursor:default">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span style="font-size:15px;font-weight:700;color:var(--t1)">电力</span>
+        <span class="up" style="font-size:15px;font-weight:700">-0.87%</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:3px">
+        
+          <div style="display:flex;justify-content:space-between;font-size:14px;color:var(--t2)">
+            <span>浙江新能 <span class="c" style="font-size:12px">sh600032</span></span>
+            <span class="dn">-4.86%</span>
+          </div>
+        
+          <div style="display:flex;justify-content:space-between;font-size:14px;color:var(--t2)">
+            <span>九洲集团 <span class="c" style="font-size:12px">sz300040</span></span>
+            <span class="dn">-1.20%</span>
+          </div>
+        
+          <div style="display:flex;justify-content:space-between;font-size:14px;color:var(--t2)">
+            <span>金房能源 <span class="c" style="font-size:12px">sz001210</span></span>
+            <span class="up">2.76%</span>
+          </div>
+        
+      </div>
+    </div>
+  
+    <div class="snap-i" style="text-align:left;padding:12px 14px;cursor:default">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span style="font-size:15px;font-weight:700;color:var(--t1)">机器人概念</span>
+        <span class="up" style="font-size:15px;font-weight:700">0.30%</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:3px">
+        
+          <div style="display:flex;justify-content:space-between;font-size:14px;color:var(--t2)">
+            <span>热威股份 <span class="c" style="font-size:12px">sh603075</span></span>
+            <span class="dn">-0.16%</span>
+          </div>
+        
+          <div style="display:flex;justify-content:space-between;font-size:14px;color:var(--t2)">
+            <span>裕太微 <span class="c" style="font-size:12px">sh688515</span></span>
+            <span class="dn">-1.71%</span>
+          </div>
+        
+          <div style="display:flex;justify-content:space-between;font-size:14px;color:var(--t2)">
+            <span>ST银江 <span class="c" style="font-size:12px">sz300020</span></span>
+            <span class="dn">-0.85%</span>
+          </div>
+        
+      </div>
+    </div>
+  
+    <div class="snap-i" style="text-align:left;padding:12px 14px;cursor:default">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span style="font-size:15px;font-weight:700;color:var(--t1)">半导体</span>
+        <span class="up" style="font-size:15px;font-weight:700">-0.45%</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:3px">
+        
+          <div style="display:flex;justify-content:space-between;font-size:14px;color:var(--t2)">
+            <span>拓荆科技 <span class="c" style="font-size:12px">sh688072</span></span>
+            <span class="up">7.49%</span>
+          </div>
+        
+          <div style="display:flex;justify-content:space-between;font-size:14px;color:var(--t2)">
+            <span>航宇微 <span class="c" style="font-size:12px">sz300053</span></span>
+            <span class="dn">-2.61%</span>
+          </div>
+        
+          <div style="display:flex;justify-content:space-between;font-size:14px;color:var(--t2)">
+            <span>圣邦股份 <span class="c" style="font-size:12px">sz300661</span></span>
+            <span class="up">2.04%</span>
+          </div>
+        
+      </div>
+    </div>
+  
+    <div class="snap-i" style="text-align:left;padding:12px 14px;cursor:default">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span style="font-size:15px;font-weight:700;color:var(--t1)">商业航天</span>
+        <span class="up" style="font-size:15px;font-weight:700">-0.97%</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:3px">
+        
+          <div style="display:flex;justify-content:space-between;font-size:14px;color:var(--t2)">
+            <span>邵阳液压 <span class="c" style="font-size:12px">sz301079</span></span>
+            <span class="up">0.82%</span>
+          </div>
+        
+          <div style="display:flex;justify-content:space-between;font-size:14px;color:var(--t2)">
+            <span>中瑞股份 <span class="c" style="font-size:12px">sz301587</span></span>
+            <span class="up">6.84%</span>
+          </div>
+        
+          <div style="display:flex;justify-content:space-between;font-size:14px;color:var(--t2)">
+            <span>火炬电子 <span class="c" style="font-size:12px">sh603678</span></span>
+            <span class="dn">-2.01%</span>
+          </div>
+        
+      </div>
+    </div>
+  
+    <div class="snap-i" style="text-align:left;padding:12px 14px;cursor:default">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span style="font-size:15px;font-weight:700;color:var(--t1)">电池</span>
+        <span class="up" style="font-size:15px;font-weight:700">-0.52%</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:3px">
+        
+          <div style="display:flex;justify-content:space-between;font-size:14px;color:var(--t2)">
+            <span>翔丰华 <span class="c" style="font-size:12px">sz300890</span></span>
+            <span class="dn">-1.51%</span>
+          </div>
+        
+          <div style="display:flex;justify-content:space-between;font-size:14px;color:var(--t2)">
+            <span>德福科技 <span class="c" style="font-size:12px">sz301511</span></span>
+            <span class="dn">-2.31%</span>
+          </div>
+        
+          <div style="display:flex;justify-content:space-between;font-size:14px;color:var(--t2)">
+            <span>天际股份 <span class="c" style="font-size:12px">sz002759</span></span>
+            <span class="up">2.13%</span>
+          </div>
+        
+      </div>
+    </div>
+  
+</div>
+
+<!-- 连板王 -->
+
+<div class="cd">
+  <div class="cd-h"><span class="ico">👑</span>连板王<span class="sub">3板及以上</span></div>
+  <div class="king">
+    <div class="king-c lv5">
+          <div class="kn">蒙娜丽莎 <span class="up">6连板</span></div>
+          <div class="km">sz002918 · 轻工制造 · 9.98% · 换手22.26% <span class="badge badge-s">S</span>83</div>
+        </div><div class="king-c lv5">
+          <div class="kn">利仁科技 <span class="up">5连板</span></div>
+          <div class="km">sz001259 · 家用电器 · 10.00% · 换手1.20% <span class="badge badge-b">B</span>52</div>
+        </div><div class="king-c lv3">
+          <div class="kn">京能电力 <span class="up">3连板</span></div>
+          <div class="km">sh600578 · 公用事业 · 10.05% · 换手6.62% <span class="badge badge-b">B</span>54</div>
+        </div>
+  </div>
+</div>
+
+<!-- 涨停详表 -->
+<div class="cd">
+  <div class="cd-h"><span class="ico">🔥</span>涨停板全景<span class="sub">共 55 只 · 按连板+强度排序</span></div>
+  <div>
+    <div class="tabs" id="lt">
+      <div class="tab on" data-v="1" onclick="sw('1')">1板(48)</div><div class="tab " data-v="2" onclick="sw('2')">2板(4)</div><div class="tab " data-v="3" onclick="sw('3')">3板(1)</div><div class="tab " data-v="4" onclick="sw('4')">4板(0)</div><div class="tab " data-v="5+" onclick="sw('5+')">5板+(2)</div>
+    </div>
+    <div class="tpanel on" id="p-1">
+        <div class="scr">
+          <table class="tb">
+            <thead><tr>
+              <th>#</th><th>连板</th><th>代码</th><th>名称</th><th>行业</th>
+              <th>涨跌幅</th><th>现价</th><th>换手率</th><th>量比</th>
+              <th>主力净流入</th><th>超大单</th><th>流通市值</th><th>PE</th><th>强度</th>
+            </tr></thead>
+            <tbody>
+              <tr>
+                  <td>1</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sz300276</td>
+                  <td class="b">三丰智能</td>
+                  <td><span class="tag-i">机械设备</span></td>
+                  <td class="up">19.94%</td>
+                  <td>8.42</td>
+                  <td>11.13%</td>
+                  <td>3.61</td>
+                  <td class="up">4.47亿</td>
+                  <td class="up">4.80亿</td>
+                  <td>89.01亿</td>
+                  <td>-</td>
+                  <td><span class="badge badge-a">A</span> <span class="m">66</span></td>
+                </tr><tr>
+                  <td>2</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sz002196</td>
+                  <td class="b">方正电机</td>
+                  <td><span class="tag-i">电力设备</span></td>
+                  <td class="up">10.03%</td>
+                  <td>15.36</td>
+                  <td>21.79%</td>
+                  <td>2.72</td>
+                  <td class="up">4.81亿</td>
+                  <td class="up">4.71亿</td>
+                  <td>75.02亿</td>
+                  <td>159.76</td>
+                  <td><span class="badge badge-a">A</span> <span class="m">61</span></td>
+                </tr><tr>
+                  <td>3</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sz002421</td>
+                  <td class="b">达实智能</td>
+                  <td><span class="tag-i">计算机</span></td>
+                  <td class="up">9.93%</td>
+                  <td>3.21</td>
+                  <td>11.45%</td>
+                  <td>3.42</td>
+                  <td class="up">2.84亿</td>
+                  <td class="up">3.10亿</td>
+                  <td>64.31亿</td>
+                  <td>-</td>
+                  <td><span class="badge badge-b">B</span> <span class="m">57</span></td>
+                </tr><tr>
+                  <td>4</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sz002407</td>
+                  <td class="b">多氟多</td>
+                  <td><span class="tag-i">基础化工</span></td>
+                  <td class="up">10.02%</td>
+                  <td>36.47</td>
+                  <td>14.31%</td>
+                  <td>1.26</td>
+                  <td class="up">21.66亿</td>
+                  <td class="up">25.15亿</td>
+                  <td>393.43亿</td>
+                  <td>82.92</td>
+                  <td><span class="badge badge-b">B</span> <span class="m">56</span></td>
+                </tr><tr>
+                  <td>5</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sh603370</td>
+                  <td class="b">华新精科</td>
+                  <td><span class="tag-i">电力设备</span></td>
+                  <td class="up">10.01%</td>
+                  <td>47.27</td>
+                  <td>7.17%</td>
+                  <td>3.12</td>
+                  <td class="up">3423.84万</td>
+                  <td class="up">4295.96万</td>
+                  <td>16.54亿</td>
+                  <td>55.31</td>
+                  <td><span class="badge badge-b">B</span> <span class="m">56</span></td>
+                </tr><tr>
+                  <td>6</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sz002031</td>
+                  <td class="b">巨轮智能</td>
+                  <td><span class="tag-i">机械设备</span></td>
+                  <td class="up">9.95%</td>
+                  <td>8.40</td>
+                  <td>25.30%</td>
+                  <td>1.57</td>
+                  <td class="up">10.14亿</td>
+                  <td class="up">11.22亿</td>
+                  <td>160.74亿</td>
+                  <td>-</td>
+                  <td><span class="badge badge-b">B</span> <span class="m">56</span></td>
+                </tr><tr>
+                  <td>7</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sz002892</td>
+                  <td class="b">科力尔</td>
+                  <td><span class="tag-i">电力设备</span></td>
+                  <td class="up">9.99%</td>
+                  <td>11.34</td>
+                  <td>5.33%</td>
+                  <td>2.66</td>
+                  <td class="up">1.04亿</td>
+                  <td class="up">1.06亿</td>
+                  <td>56.82亿</td>
+                  <td>438.31</td>
+                  <td><span class="badge badge-b">B</span> <span class="m">55</span></td>
+                </tr><tr>
+                  <td>8</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sz300263</td>
+                  <td class="b">隆华科技</td>
+                  <td><span class="tag-i">机械设备</span></td>
+                  <td class="up">20.00%</td>
+                  <td>13.74</td>
+                  <td>24.05%</td>
+                  <td>5.00</td>
+                  <td class="up">3.51亿</td>
+                  <td class="up">3.77亿</td>
+                  <td>134.04亿</td>
+                  <td>67.86</td>
+                  <td><span class="badge badge-b">B</span> <span class="m">54</span></td>
+                </tr><tr>
+                  <td>9</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sz001333</td>
+                  <td class="b">光华股份</td>
+                  <td><span class="tag-i">基础化工</span></td>
+                  <td class="up">10.01%</td>
+                  <td>26.05</td>
+                  <td>20.03%</td>
+                  <td>1.94</td>
+                  <td class="up">4033.05万</td>
+                  <td class="up">4913.72万</td>
+                  <td>11.46亿</td>
+                  <td>29.03</td>
+                  <td><span class="badge badge-b">B</span> <span class="m">54</span></td>
+                </tr><tr>
+                  <td>10</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sh603333</td>
+                  <td class="b">尚纬股份</td>
+                  <td><span class="tag-i">电力设备</span></td>
+                  <td class="up">10.03%</td>
+                  <td>9.65</td>
+                  <td>7.37%</td>
+                  <td>2.49</td>
+                  <td class="up">8957.56万</td>
+                  <td class="up">7458.97万</td>
+                  <td>59.98亿</td>
+                  <td>-</td>
+                  <td><span class="badge badge-b">B</span> <span class="m">53</span></td>
+                </tr><tr>
+                  <td>11</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sh603078</td>
+                  <td class="b">江化微</td>
+                  <td><span class="tag-i">电子</span></td>
+                  <td class="up">10.00%</td>
+                  <td>30.25</td>
+                  <td>12.78%</td>
+                  <td>1.54</td>
+                  <td class="up">3.49亿</td>
+                  <td class="up">3.73亿</td>
+                  <td>116.66亿</td>
+                  <td>109.26</td>
+                  <td><span class="badge badge-b">B</span> <span class="m">53</span></td>
+                </tr><tr>
+                  <td>12</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sh600784</td>
+                  <td class="b">鲁银投资</td>
+                  <td><span class="tag-i">基础化工</span></td>
+                  <td class="up">10.01%</td>
+                  <td>7.80</td>
+                  <td>4.53%</td>
+                  <td>3.15</td>
+                  <td class="up">6278.54万</td>
+                  <td class="up">6891.09万</td>
+                  <td>52.70亿</td>
+                  <td>36.14</td>
+                  <td><span class="badge badge-b">B</span> <span class="m">52</span></td>
+                </tr><tr>
+                  <td>13</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sh603598</td>
+                  <td class="b">引力传媒</td>
+                  <td><span class="tag-i">传媒</span></td>
+                  <td class="up">9.99%</td>
+                  <td>25.33</td>
+                  <td>12.38%</td>
+                  <td>0.78</td>
+                  <td class="up">2.56亿</td>
+                  <td class="up">2.78亿</td>
+                  <td>68.23亿</td>
+                  <td>342.06</td>
+                  <td><span class="badge badge-b">B</span> <span class="m">52</span></td>
+                </tr><tr>
+                  <td>14</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sh603505</td>
+                  <td class="b">金石资源</td>
+                  <td><span class="tag-i">基础化工</span></td>
+                  <td class="up">9.99%</td>
+                  <td>20.37</td>
+                  <td>5.67%</td>
+                  <td>2.61</td>
+                  <td class="up">1.97亿</td>
+                  <td class="up">2.75亿</td>
+                  <td>171.45亿</td>
+                  <td>53.55</td>
+                  <td><span class="badge badge-b">B</span> <span class="m">52</span></td>
+                </tr><tr>
+                  <td>15</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sh688697</td>
+                  <td class="b">纽威数控</td>
+                  <td><span class="tag-i">机械设备</span></td>
+                  <td class="up">20.00%</td>
+                  <td>24.18</td>
+                  <td>7.29%</td>
+                  <td>2.25</td>
+                  <td class="up">1.09亿</td>
+                  <td class="up">1.48亿</td>
+                  <td>110.58亿</td>
+                  <td>35.73</td>
+                  <td><span class="badge badge-b">B</span> <span class="m">51</span></td>
+                </tr><tr>
+                  <td>16</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sh603767</td>
+                  <td class="b">中马传动</td>
+                  <td><span class="tag-i">汽车</span></td>
+                  <td class="up">10.02%</td>
+                  <td>21.64</td>
+                  <td>4.74%</td>
+                  <td>1.54</td>
+                  <td class="up">1.34亿</td>
+                  <td class="up">1.54亿</td>
+                  <td>66.79亿</td>
+                  <td>-</td>
+                  <td><span class="badge badge-b">B</span> <span class="m">51</span></td>
+                </tr><tr>
+                  <td>17</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sz002729</td>
+                  <td class="b">好利科技</td>
+                  <td><span class="tag-i">电子</span></td>
+                  <td class="up">9.99%</td>
+                  <td>20.91</td>
+                  <td>12.81%</td>
+                  <td>1.67</td>
+                  <td class="up">9654.63万</td>
+                  <td class="up">9738.51万</td>
+                  <td>36.69亿</td>
+                  <td>94.44</td>
+                  <td><span class="badge badge-b">B</span> <span class="m">51</span></td>
+                </tr><tr>
+                  <td>18</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sh603278</td>
+                  <td class="b">大业股份</td>
+                  <td><span class="tag-i">机械设备</span></td>
+                  <td class="up">9.99%</td>
+                  <td>16.96</td>
+                  <td>22.34%</td>
+                  <td>0.87</td>
+                  <td class="up">3.59亿</td>
+                  <td class="up">3.57亿</td>
+                  <td>57.96亿</td>
+                  <td>-</td>
+                  <td><span class="badge badge-b">B</span> <span class="m">51</span></td>
+                </tr><tr>
+                  <td>19</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sh603248</td>
+                  <td class="b">锡华科技</td>
+                  <td><span class="tag-i">电力设备</span></td>
+                  <td class="up">9.99%</td>
+                  <td>31.60</td>
+                  <td>20.92%</td>
+                  <td>1.19</td>
+                  <td class="up">1.24亿</td>
+                  <td class="up">1.18亿</td>
+                  <td>21.90亿</td>
+                  <td>74.26</td>
+                  <td><span class="badge badge-b">B</span> <span class="m">51</span></td>
+                </tr><tr>
+                  <td>20</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sh688549</td>
+                  <td class="b">中巨芯-U</td>
+                  <td><span class="tag-i">电子</span></td>
+                  <td class="up">20.01%</td>
+                  <td>16.79</td>
+                  <td>12.13%</td>
+                  <td>0.98</td>
+                  <td class="up">3.31亿</td>
+                  <td class="up">4.68亿</td>
+                  <td>98.95亿</td>
+                  <td>-</td>
+                  <td><span class="badge badge-b">B</span> <span class="m">50</span></td>
+                </tr><tr>
+                  <td>21</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sz300721</td>
+                  <td class="b">怡达股份</td>
+                  <td><span class="tag-i">基础化工</span></td>
+                  <td class="up">19.98%</td>
+                  <td>29.36</td>
+                  <td>21.79%</td>
+                  <td>1.20</td>
+                  <td class="up">1.43亿</td>
+                  <td class="up">1.70亿</td>
+                  <td>40.62亿</td>
+                  <td>-</td>
+                  <td><span class="badge badge-b">B</span> <span class="m">49</span></td>
+                </tr><tr>
+                  <td>22</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sh603310</td>
+                  <td class="b">巍华新材</td>
+                  <td><span class="tag-i">基础化工</span></td>
+                  <td class="up">10.03%</td>
+                  <td>17.66</td>
+                  <td>10.59%</td>
+                  <td>10.45</td>
+                  <td class="up">6634.09万</td>
+                  <td class="up">7390.38万</td>
+                  <td>34.26亿</td>
+                  <td>34.48</td>
+                  <td><span class="badge badge-b">B</span> <span class="m">49</span></td>
+                </tr><tr>
+                  <td>23</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sh600088</td>
+                  <td class="b">中视传媒</td>
+                  <td><span class="tag-i">传媒</span></td>
+                  <td class="up">10.03%</td>
+                  <td>18.65</td>
+                  <td>8.76%</td>
+                  <td>2.03</td>
+                  <td class="up">6228.31万</td>
+                  <td class="up">8291.18万</td>
+                  <td>74.17亿</td>
+                  <td>-</td>
+                  <td><span class="badge badge-b">B</span> <span class="m">48</span></td>
+                </tr><tr>
+                  <td>24</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sz002374</td>
+                  <td class="b">中锐股份</td>
+                  <td><span class="tag-i">轻工制造</span></td>
+                  <td class="up">9.91%</td>
+                  <td>3.55</td>
+                  <td>4.13%</td>
+                  <td>1.53</td>
+                  <td class="up">5417.09万</td>
+                  <td class="up">5196.68万</td>
+                  <td>38.52亿</td>
+                  <td>-</td>
+                  <td><span class="badge badge-b">B</span> <span class="m">48</span></td>
+                </tr><tr>
+                  <td>25</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sz301696</td>
+                  <td class="b">三瑞智能</td>
+                  <td><span class="tag-i">电力设备</span></td>
+                  <td class="up">20.00%</td>
+                  <td>139.48</td>
+                  <td>37.51%</td>
+                  <td>0.97</td>
+                  <td class="up">2.68亿</td>
+                  <td class="up">3.16亿</td>
+                  <td>41.96亿</td>
+                  <td>118.98</td>
+                  <td><span class="badge badge-b">B</span> <span class="m">46</span></td>
+                </tr><tr>
+                  <td>26</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sh603390</td>
+                  <td class="b">通达电气</td>
+                  <td><span class="tag-i">汽车</span></td>
+                  <td class="up">10.04%</td>
+                  <td>14.80</td>
+                  <td>7.10%</td>
+                  <td>1.46</td>
+                  <td class="up">1.06亿</td>
+                  <td class="up">1.04亿</td>
+                  <td>51.88亿</td>
+                  <td>39.93</td>
+                  <td><span class="badge badge-b">B</span> <span class="m">46</span></td>
+                </tr><tr>
+                  <td>27</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sh603697</td>
+                  <td class="b">XD有友食</td>
+                  <td><span class="tag-i">食品饮料</span></td>
+                  <td class="up">9.99%</td>
+                  <td>11.34</td>
+                  <td>5.26%</td>
+                  <td>4.07</td>
+                  <td class="up">5510.57万</td>
+                  <td class="up">5601.82万</td>
+                  <td>48.50亿</td>
+                  <td>24.13</td>
+                  <td><span class="badge badge-b">B</span> <span class="m">46</span></td>
+                </tr><tr>
+                  <td>28</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sz300878</td>
+                  <td class="b">维康药业</td>
+                  <td><span class="tag-i">医药生物</span></td>
+                  <td class="up">19.99%</td>
+                  <td>36.20</td>
+                  <td>8.56%</td>
+                  <td>3.31</td>
+                  <td class="up">3328.62万</td>
+                  <td class="up">2026.10万</td>
+                  <td>52.17亿</td>
+                  <td>-</td>
+                  <td><span class="badge badge-b">B</span> <span class="m">45</span></td>
+                </tr><tr>
+                  <td>29</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sh601996</td>
+                  <td class="b">丰林集团</td>
+                  <td><span class="tag-i">轻工制造</span></td>
+                  <td class="up">10.11%</td>
+                  <td>3.05</td>
+                  <td>7.68%</td>
+                  <td>0.90</td>
+                  <td class="up">6112.85万</td>
+                  <td class="up">5810.27万</td>
+                  <td>34.19亿</td>
+                  <td>-</td>
+                  <td><span class="badge badge-b">B</span> <span class="m">45</span></td>
+                </tr><tr>
+                  <td>30</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sh603363</td>
+                  <td class="b">傲农生物</td>
+                  <td><span class="tag-i">农林牧渔</span></td>
+                  <td class="up">10.06%</td>
+                  <td>3.50</td>
+                  <td>5.45%</td>
+                  <td>2.68</td>
+                  <td class="up">1.18亿</td>
+                  <td class="up">9912.36万</td>
+                  <td>75.01亿</td>
+                  <td>-</td>
+                  <td><span class="badge badge-b">B</span> <span class="m">45</span></td>
+                </tr><tr>
+                  <td>31</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sh603386</td>
+                  <td class="b">骏亚科技</td>
+                  <td><span class="tag-i">电子</span></td>
+                  <td class="up">10.01%</td>
+                  <td>16.92</td>
+                  <td>6.82%</td>
+                  <td>1.05</td>
+                  <td class="up">1.37亿</td>
+                  <td class="up">1.47亿</td>
+                  <td>55.21亿</td>
+                  <td>-</td>
+                  <td><span class="badge badge-b">B</span> <span class="m">45</span></td>
+                </tr><tr>
+                  <td>32</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sz002181</td>
+                  <td class="b">粤 传 媒</td>
+                  <td><span class="tag-i">传媒</span></td>
+                  <td class="up">10.00%</td>
+                  <td>19.69</td>
+                  <td>8.89%</td>
+                  <td>0.95</td>
+                  <td class="up">5.48亿</td>
+                  <td class="up">5.67亿</td>
+                  <td>223.39亿</td>
+                  <td>313.07</td>
+                  <td><span class="badge badge-b">B</span> <span class="m">45</span></td>
+                </tr><tr>
+                  <td>33</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sh600386</td>
+                  <td class="b">北巴传媒</td>
+                  <td><span class="tag-i">汽车</span></td>
+                  <td class="up">10.10%</td>
+                  <td>4.36</td>
+                  <td>6.37%</td>
+                  <td>5.25</td>
+                  <td class="up">1175.64万</td>
+                  <td class="up">1612.89万</td>
+                  <td>35.16亿</td>
+                  <td>-</td>
+                  <td><span class="badge badge-b">B</span> <span class="m">44</span></td>
+                </tr><tr>
+                  <td>34</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sh603520</td>
+                  <td class="b">司太立</td>
+                  <td><span class="tag-i">医药生物</span></td>
+                  <td class="up">9.98%</td>
+                  <td>13.56</td>
+                  <td>11.76%</td>
+                  <td>1.46</td>
+                  <td class="up">1.65亿</td>
+                  <td class="up">1.73亿</td>
+                  <td>59.45亿</td>
+                  <td>353.07</td>
+                  <td><span class="badge badge-b">B</span> <span class="m">44</span></td>
+                </tr><tr>
+                  <td>35</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sz002979</td>
+                  <td class="b">雷赛智能</td>
+                  <td><span class="tag-i">机械设备</span></td>
+                  <td class="up">10.01%</td>
+                  <td>59.80</td>
+                  <td>9.39%</td>
+                  <td>0.68</td>
+                  <td class="up">1.91亿</td>
+                  <td class="up">2.06亿</td>
+                  <td>132.13亿</td>
+                  <td>77.97</td>
+                  <td><span class="badge badge-b">B</span> <span class="m">43</span></td>
+                </tr><tr>
+                  <td>36</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sz301081</td>
+                  <td class="b">严牌股份</td>
+                  <td><span class="tag-i">环保</span></td>
+                  <td class="up">19.98%</td>
+                  <td>20.30</td>
+                  <td>8.53%</td>
+                  <td>2.37</td>
+                  <td class="up">1579.48万</td>
+                  <td class="up">1102.47万</td>
+                  <td>44.36亿</td>
+                  <td>571.66</td>
+                  <td><span class="badge badge-b">B</span> <span class="m">42</span></td>
+                </tr><tr>
+                  <td>37</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sh601678</td>
+                  <td class="b">滨化股份</td>
+                  <td><span class="tag-i">基础化工</span></td>
+                  <td class="up">10.04%</td>
+                  <td>5.81</td>
+                  <td>4.82%</td>
+                  <td>1.37</td>
+                  <td class="up">1.53亿</td>
+                  <td class="up">1.99亿</td>
+                  <td>118.72亿</td>
+                  <td>43.34</td>
+                  <td><span class="badge badge-b">B</span> <span class="m">42</span></td>
+                </tr><tr>
+                  <td>38</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sz002395</td>
+                  <td class="b">双象股份</td>
+                  <td><span class="tag-i">基础化工</span></td>
+                  <td class="up">10.02%</td>
+                  <td>21.19</td>
+                  <td>4.49%</td>
+                  <td>1.49</td>
+                  <td class="up">2789.41万</td>
+                  <td class="up">4094.88万</td>
+                  <td>56.83亿</td>
+                  <td>34.60</td>
+                  <td><span class="badge badge-b">B</span> <span class="m">41</span></td>
+                </tr><tr>
+                  <td>39</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sz002348</td>
+                  <td class="b">高乐股份</td>
+                  <td><span class="tag-i">轻工制造</span></td>
+                  <td class="up">10.02%</td>
+                  <td>13.72</td>
+                  <td>3.37%</td>
+                  <td>0.89</td>
+                  <td class="up">6982.83万</td>
+                  <td class="up">5261.58万</td>
+                  <td>123.96亿</td>
+                  <td>-</td>
+                  <td><span class="badge badge-b">B</span> <span class="m">41</span></td>
+                </tr><tr>
+                  <td>40</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sz002066</td>
+                  <td class="b">瑞泰科技</td>
+                  <td><span class="tag-i">建筑材料</span></td>
+                  <td class="up">10.00%</td>
+                  <td>26.06</td>
+                  <td>11.07%</td>
+                  <td>1.58</td>
+                  <td class="up">1.05亿</td>
+                  <td class="up">1.25亿</td>
+                  <td>60.20亿</td>
+                  <td>-</td>
+                  <td><span class="badge badge-b">B</span> <span class="m">41</span></td>
+                </tr><tr>
+                  <td>41</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sh601991</td>
+                  <td class="b">大唐发电</td>
+                  <td><span class="tag-i">公用事业</span></td>
+                  <td class="up">10.00%</td>
+                  <td>7.92</td>
+                  <td>12.30%</td>
+                  <td>1.78</td>
+                  <td class="up">6.86亿</td>
+                  <td class="up">7.48亿</td>
+                  <td>981.77亿</td>
+                  <td>18.23</td>
+                  <td><span class="badge badge-b">B</span> <span class="m">40</span></td>
+                </tr><tr>
+                  <td>42</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sh603040</td>
+                  <td class="b">新坐标</td>
+                  <td><span class="tag-i">汽车</span></td>
+                  <td class="up">10.01%</td>
+                  <td>82.90</td>
+                  <td>2.80%</td>
+                  <td>1.56</td>
+                  <td class="up">3612.10万</td>
+                  <td class="up">5511.44万</td>
+                  <td>112.53亿</td>
+                  <td>42.50</td>
+                  <td><span class="badge badge-c">C</span> <span class="m">39</span></td>
+                </tr><tr>
+                  <td>43</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sh603677</td>
+                  <td class="b">奇精机械</td>
+                  <td><span class="tag-i">家用电器</span></td>
+                  <td class="up">10.01%</td>
+                  <td>17.04</td>
+                  <td>2.37%</td>
+                  <td>2.55</td>
+                  <td class="up">2603.48万</td>
+                  <td class="up">3220.36万</td>
+                  <td>32.82亿</td>
+                  <td>79.25</td>
+                  <td><span class="badge badge-c">C</span> <span class="m">38</span></td>
+                </tr><tr>
+                  <td>44</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sz002915</td>
+                  <td class="b">中欣氟材</td>
+                  <td><span class="tag-i">基础化工</span></td>
+                  <td class="up">10.00%</td>
+                  <td>23.11</td>
+                  <td>2.72%</td>
+                  <td>0.46</td>
+                  <td class="up">1.16亿</td>
+                  <td class="up">1.40亿</td>
+                  <td>66.57亿</td>
+                  <td>723.08</td>
+                  <td><span class="badge badge-c">C</span> <span class="m">38</span></td>
+                </tr><tr>
+                  <td>45</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sh600081</td>
+                  <td class="b">东风科技</td>
+                  <td><span class="tag-i">汽车</span></td>
+                  <td class="up">10.03%</td>
+                  <td>12.94</td>
+                  <td>2.60%</td>
+                  <td>1.41</td>
+                  <td class="up">6143.20万</td>
+                  <td class="up">7092.80万</td>
+                  <td>71.56亿</td>
+                  <td>313.13</td>
+                  <td><span class="badge badge-c">C</span> <span class="m">34</span></td>
+                </tr><tr>
+                  <td>46</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sh605099</td>
+                  <td class="b">共创草坪</td>
+                  <td><span class="tag-i">轻工制造</span></td>
+                  <td class="up">10.00%</td>
+                  <td>53.56</td>
+                  <td>1.52%</td>
+                  <td>1.11</td>
+                  <td class="up">5180.30万</td>
+                  <td class="up">4591.23万</td>
+                  <td>215.02亿</td>
+                  <td>30.26</td>
+                  <td><span class="badge badge-c">C</span> <span class="m">34</span></td>
+                </tr><tr>
+                  <td>47</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sh601133</td>
+                  <td class="b">柏诚股份</td>
+                  <td><span class="tag-i">建筑装饰</span></td>
+                  <td class="up">9.99%</td>
+                  <td>28.18</td>
+                  <td>5.94%</td>
+                  <td>1.44</td>
+                  <td class="up">1.23亿</td>
+                  <td class="up">1.35亿</td>
+                  <td>147.77亿</td>
+                  <td>77.48</td>
+                  <td><span class="badge badge-c">C</span> <span class="m">32</span></td>
+                </tr><tr>
+                  <td>48</td>
+                  <td><span class="bar bar-1"></span><b>1</b></td>
+                  <td class="c">sh600510</td>
+                  <td class="b">黑牡丹</td>
+                  <td><span class="tag-i">房地产</span></td>
+                  <td class="up">9.99%</td>
+                  <td>10.02</td>
+                  <td>2.29%</td>
+                  <td>0.77</td>
+                  <td class="up">8070.85万</td>
+                  <td class="up">7725.12万</td>
+                  <td>103.41亿</td>
+                  <td>122.41</td>
+                  <td><span class="badge badge-c">C</span> <span class="m">25</span></td>
+                </tr>
+            </tbody>
+          </table>
+        </div>
+      </div><div class="tpanel " id="p-2">
+        <div class="scr">
+          <table class="tb">
+            <thead><tr>
+              <th>#</th><th>连板</th><th>代码</th><th>名称</th><th>行业</th>
+              <th>涨跌幅</th><th>现价</th><th>换手率</th><th>量比</th>
+              <th>主力净流入</th><th>超大单</th><th>流通市值</th><th>PE</th><th>强度</th>
+            </tr></thead>
+            <tbody>
+              <tr>
+                  <td>1</td>
+                  <td><span class="bar bar-2"></span><b>2</b></td>
+                  <td class="c">sz002971</td>
+                  <td class="b">和远气体</td>
+                  <td><span class="tag-i">基础化工</span></td>
+                  <td class="up">10.01%</td>
+                  <td>41.21</td>
+                  <td>20.44%</td>
+                  <td>2.58</td>
+                  <td class="up">1.32亿</td>
+                  <td class="up">1.11亿</td>
+                  <td>64.45亿</td>
+                  <td>164.10</td>
+                  <td><span class="badge badge-b">B</span> <span class="m">57</span></td>
+                </tr><tr>
+                  <td>2</td>
+                  <td><span class="bar bar-2"></span><b>2</b></td>
+                  <td class="c">sz003018</td>
+                  <td class="b">金富科技</td>
+                  <td><span class="tag-i">轻工制造</span></td>
+                  <td class="up">10.01%</td>
+                  <td>59.14</td>
+                  <td>3.49%</td>
+                  <td>0.65</td>
+                  <td class="up">6789.69万</td>
+                  <td class="up">7360.12万</td>
+                  <td>140.39亿</td>
+                  <td>160.25</td>
+                  <td><span class="badge badge-b">B</span> <span class="m">47</span></td>
+                </tr><tr>
+                  <td>3</td>
+                  <td><span class="bar bar-2"></span><b>2</b></td>
+                  <td class="c">sh603082</td>
+                  <td class="b">北自科技</td>
+                  <td><span class="tag-i">机械设备</span></td>
+                  <td class="up">10.01%</td>
+                  <td>42.30</td>
+                  <td>31.63%</td>
+                  <td>6.17</td>
+                  <td class="up">1793.27万</td>
+                  <td class="up">4718.27万</td>
+                  <td>17.16亿</td>
+                  <td>46.02</td>
+                  <td><span class="badge badge-b">B</span> <span class="m">40</span></td>
+                </tr><tr>
+                  <td>4</td>
+                  <td><span class="bar bar-2"></span><b>2</b></td>
+                  <td class="c">sh603779</td>
+                  <td class="b">威龙股份</td>
+                  <td><span class="tag-i">食品饮料</span></td>
+                  <td class="up">9.98%</td>
+                  <td>9.92</td>
+                  <td>1.59%</td>
+                  <td>0.23</td>
+                  <td class="up">2642.46万</td>
+                  <td class="up">3338.15万</td>
+                  <td>32.94亿</td>
+                  <td>-</td>
+                  <td><span class="badge badge-c">C</span> <span class="m">34</span></td>
+                </tr>
+            </tbody>
+          </table>
+        </div>
+      </div><div class="tpanel " id="p-3">
+        <div class="scr">
+          <table class="tb">
+            <thead><tr>
+              <th>#</th><th>连板</th><th>代码</th><th>名称</th><th>行业</th>
+              <th>涨跌幅</th><th>现价</th><th>换手率</th><th>量比</th>
+              <th>主力净流入</th><th>超大单</th><th>流通市值</th><th>PE</th><th>强度</th>
+            </tr></thead>
+            <tbody>
+              <tr>
+                  <td>1</td>
+                  <td><span class="bar bar-3"></span><b>3</b></td>
+                  <td class="c">sh600578</td>
+                  <td class="b">京能电力</td>
+                  <td><span class="tag-i">公用事业</span></td>
+                  <td class="up">10.05%</td>
+                  <td>7.01</td>
+                  <td>6.62%</td>
+                  <td>4.30</td>
+                  <td class="dn">-3.24亿</td>
+                  <td class="dn">-3.12亿</td>
+                  <td>469.29亿</td>
+                  <td>13.24</td>
+                  <td><span class="badge badge-b">B</span> <span class="m">54</span></td>
+                </tr>
+            </tbody>
+          </table>
+        </div>
+      </div><div class="tpanel " id="p-4">
+        <div class="scr">
+          <table class="tb">
+            <thead><tr>
+              <th>#</th><th>连板</th><th>代码</th><th>名称</th><th>行业</th>
+              <th>涨跌幅</th><th>现价</th><th>换手率</th><th>量比</th>
+              <th>主力净流入</th><th>超大单</th><th>流通市值</th><th>PE</th><th>强度</th>
+            </tr></thead>
+            <tbody>
+              
+            </tbody>
+          </table>
+        </div>
+      </div><div class="tpanel " id="p-5+">
+        <div class="scr">
+          <table class="tb">
+            <thead><tr>
+              <th>#</th><th>连板</th><th>代码</th><th>名称</th><th>行业</th>
+              <th>涨跌幅</th><th>现价</th><th>换手率</th><th>量比</th>
+              <th>主力净流入</th><th>超大单</th><th>流通市值</th><th>PE</th><th>强度</th>
+            </tr></thead>
+            <tbody>
+              <tr>
+                  <td>1</td>
+                  <td><span class="bar bar-5"></span><b>6</b></td>
+                  <td class="c">sz002918</td>
+                  <td class="b">蒙娜丽莎</td>
+                  <td><span class="tag-i">轻工制造</span></td>
+                  <td class="up">9.98%</td>
+                  <td>18.63</td>
+                  <td>22.26%</td>
+                  <td>2.26</td>
+                  <td class="up">1.44亿</td>
+                  <td class="up">2.21亿</td>
+                  <td>39.90亿</td>
+                  <td>81.38</td>
+                  <td><span class="badge badge-s">S</span> <span class="m">83</span></td>
+                </tr><tr>
+                  <td>2</td>
+                  <td><span class="bar bar-5"></span><b>5</b></td>
+                  <td class="c">sz001259</td>
+                  <td class="b">利仁科技</td>
+                  <td><span class="tag-i">家用电器</span></td>
+                  <td class="up">10.00%</td>
+                  <td>60.50</td>
+                  <td>1.20%</td>
+                  <td>0.49</td>
+                  <td class="up">884.03万</td>
+                  <td class="up">1377.10万</td>
+                  <td>28.76亿</td>
+                  <td>357.60</td>
+                  <td><span class="badge badge-b">B</span> <span class="m">52</span></td>
+                </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+  </div>
+</div>
+
+<!-- 双列：行业热度 + 资金流向 -->
+<div class="g2">
+
+<div class="cd">
+  <div class="cd-h"><span class="ico">🏭</span>行业涨停热度<span class="sub">按涨停家数排序</span></div>
+  <div class="scr" style="max-height:420px">
+    <table class="tb">
+      <thead><tr><th>#</th><th>行业</th><th>涨停家数</th><th>主力净流入</th><th>代表个股</th></tr></thead>
+      <tbody>
+        <tr>
+            <td>1</td>
+            <td class="b">基础化工</td>
+            <td class="up b" style="font-size:18px">10</td>
+            <td class="up">31.05亿</td>
+            <td class="m">和远气体、多氟多、光华股份</td>
+          </tr><tr>
+            <td>2</td>
+            <td class="b">机械设备</td>
+            <td class="up b" style="font-size:18px">7</td>
+            <td class="up">24.87亿</td>
+            <td class="m">三丰智能、巨轮智能、隆华科技</td>
+          </tr><tr>
+            <td>3</td>
+            <td class="b">电力设备</td>
+            <td class="up b" style="font-size:18px">6</td>
+            <td class="up">11.01亿</td>
+            <td class="m">方正电机、华新精科、科力尔</td>
+          </tr><tr>
+            <td>4</td>
+            <td class="b">轻工制造</td>
+            <td class="up b" style="font-size:18px">6</td>
+            <td class="up">4.49亿</td>
+            <td class="m">蒙娜丽莎、中锐股份、金富科技</td>
+          </tr><tr>
+            <td>5</td>
+            <td class="b">汽车</td>
+            <td class="up b" style="font-size:18px">5</td>
+            <td class="up">3.50亿</td>
+            <td class="m">中马传动、通达电气、北巴传媒</td>
+          </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="cd">
+  <div class="cd-h"><span class="ico">💰</span>行业资金流向<span class="sub">按主力净流入排序</span></div>
+  <div class="scr" style="max-height:420px">
+    <table class="tb">
+      <thead><tr><th>#</th><th>行业</th><th>主力净流入</th><th>涨停</th><th>代表个股</th></tr></thead>
+      <tbody>
+        <tr>
+            <td>1</td>
+            <td class="b">基础化工</td>
+            <td class="up b" style="font-size:16px">31.05亿</td>
+            <td class="up">10</td>
+            <td class="m">和远气体、多氟多、光华股份</td>
+          </tr><tr>
+            <td>2</td>
+            <td class="b">机械设备</td>
+            <td class="up b" style="font-size:16px">24.87亿</td>
+            <td class="up">7</td>
+            <td class="m">三丰智能、巨轮智能、隆华科技</td>
+          </tr><tr>
+            <td>3</td>
+            <td class="b">电力设备</td>
+            <td class="up b" style="font-size:16px">11.01亿</td>
+            <td class="up">6</td>
+            <td class="m">方正电机、华新精科、科力尔</td>
+          </tr><tr>
+            <td>4</td>
+            <td class="b">电子</td>
+            <td class="up b" style="font-size:16px">9.13亿</td>
+            <td class="up">4</td>
+            <td class="m">江化微、好利科技、中巨芯-U</td>
+          </tr><tr>
+            <td>5</td>
+            <td class="b">传媒</td>
+            <td class="up b" style="font-size:16px">8.66亿</td>
+            <td class="up">3</td>
+            <td class="m">引力传媒、中视传媒、粤 传 媒</td>
+          </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+</div>
+
+<!-- 双列：概念 + 活跃个股 -->
+<div class="g2">
+
+<div class="cd">
+  <div class="cd-h"><span class="ico">💡</span>热门概念5日涨幅<span class="sub">聚源产业概念</span></div>
+  <div class="scr" style="max-height:420px">
+    <table class="tb">
+      <thead><tr><th>#</th><th>概念</th><th>5日%</th><th>20日%</th><th>60日%</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td class="b">电子特气</td>
+          <td class="up">14.56%</td>
+          <td class="up">40.64%</td>
+          <td class="up">66.58%</td>
+        </tr><tr>
+          <td>2</td>
+          <td class="b">高带宽存储器HBM</td>
+          <td class="up">13.10%</td>
+          <td class="up">24.18%</td>
+          <td class="up">31.19%</td>
+        </tr><tr>
+          <td>3</td>
+          <td class="b">模拟芯片</td>
+          <td class="up">10.07%</td>
+          <td class="up">32.46%</td>
+          <td class="up">32.75%</td>
+        </tr><tr>
+          <td>4</td>
+          <td class="b">光刻机</td>
+          <td class="up">9.08%</td>
+          <td class="up">23.62%</td>
+          <td class="up">34.05%</td>
+        </tr><tr>
+          <td>5</td>
+          <td class="b">中芯国际概念</td>
+          <td class="up">9.01%</td>
+          <td class="up">23.71%</td>
+          <td class="up">24.12%</td>
+        </tr><tr>
+          <td>6</td>
+          <td class="b">碳化硅</td>
+          <td class="up">8.86%</td>
+          <td class="up">19.83%</td>
+          <td class="up">17.98%</td>
+        </tr><tr>
+          <td>7</td>
+          <td class="b">玻璃基板封装</td>
+          <td class="up">7.84%</td>
+          <td class="up">28.10%</td>
+          <td class="up">46.46%</td>
+        </tr><tr>
+          <td>8</td>
+          <td class="b">半导体设备概念</td>
+          <td class="up">7.61%</td>
+          <td class="up">22.14%</td>
+          <td class="up">28.58%</td>
+        </tr><tr>
+          <td>9</td>
+          <td class="b">半导体材料概念</td>
+          <td class="up">7.42%</td>
+          <td class="up">24.11%</td>
+          <td class="up">25.08%</td>
+        </tr><tr>
+          <td>10</td>
+          <td class="b">碳基半导体</td>
+          <td class="up">7.31%</td>
+          <td class="up">22.03%</td>
+          <td class="up">29.06%</td>
+        </tr><tr>
+          <td>11</td>
+          <td class="b">存储器</td>
+          <td class="up">7.04%</td>
+          <td class="up">22.98%</td>
+          <td class="up">28.85%</td>
+        </tr><tr>
+          <td>12</td>
+          <td class="b">工业气体</td>
+          <td class="up">7.03%</td>
+          <td class="up">20.44%</td>
+          <td class="up">24.33%</td>
+        </tr><tr>
+          <td>13</td>
+          <td class="b">蓝宝石</td>
+          <td class="up">6.69%</td>
+          <td class="up">16.26%</td>
+          <td class="up">22.06%</td>
+        </tr><tr>
+          <td>14</td>
+          <td class="b">先进封装(Chiplet)</td>
+          <td class="up">6.68%</td>
+          <td class="up">22.64%</td>
+          <td class="up">35.67%</td>
+        </tr><tr>
+          <td>15</td>
+          <td class="b">第三代半导体</td>
+          <td class="up">6.47%</td>
+          <td class="up">20.15%</td>
+          <td class="up">28.00%</td>
+        </tr><tr>
+          <td>16</td>
+          <td class="b">环氧丙烷概念</td>
+          <td class="up">5.60%</td>
+          <td class="up">10.55%</td>
+          <td class="up">7.08%</td>
+        </tr><tr>
+          <td>17</td>
+          <td class="b">半导体产业</td>
+          <td class="up">5.52%</td>
+          <td class="up">19.23%</td>
+          <td class="up">23.53%</td>
+        </tr><tr>
+          <td>18</td>
+          <td class="b">光刻胶</td>
+          <td class="up">5.26%</td>
+          <td class="up">18.73%</td>
+          <td class="up">21.92%</td>
+        </tr><tr>
+          <td>19</td>
+          <td class="b">PLC概念</td>
+          <td class="up">4.95%</td>
+          <td class="up">14.05%</td>
+          <td class="up">1.55%</td>
+        </tr><tr>
+          <td>20</td>
+          <td class="b">醋酸</td>
+          <td class="up">4.89%</td>
+          <td class="up">5.53%</td>
+          <td class="up">8.90%</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="cd">
+  <div class="cd-h"><span class="ico">⭐</span>行业活跃个股 TOP5<span class="sub">按强度评分</span></div>
+  <div class="scr" style="max-height:420px">
+    <div class="act-item">
+        <div style="font-weight:700;font-size:16px;margin-bottom:4px">
+          <span class="tag-i">基础化工</span>
+          <span class="up" style="font-size:14px">10只涨停</span>
+        </div>
+        <div class="act-row">
+          <span class="b">和远气体</span>
+          <span>
+            <span class="up">10.01%</span>
+            <span class="badge badge-b">B</span>
+            <span style="background:#fff7e6;color:#d46b08;padding:2px 8px;border-radius:3px;font-size:13px;font-weight:700">2连板</span>
+          </span>
+        </div><div class="act-row">
+          <span class="b">多氟多</span>
+          <span>
+            <span class="up">10.02%</span>
+            <span class="badge badge-b">B</span>
+            
+          </span>
+        </div><div class="act-row">
+          <span class="b">光华股份</span>
+          <span>
+            <span class="up">10.01%</span>
+            <span class="badge badge-b">B</span>
+            
+          </span>
+        </div><div class="act-row">
+          <span class="b">鲁银投资</span>
+          <span>
+            <span class="up">10.01%</span>
+            <span class="badge badge-b">B</span>
+            
+          </span>
+        </div><div class="act-row">
+          <span class="b">金石资源</span>
+          <span>
+            <span class="up">9.99%</span>
+            <span class="badge badge-b">B</span>
+            
+          </span>
+        </div>
+      </div><div class="act-item">
+        <div style="font-weight:700;font-size:16px;margin-bottom:4px">
+          <span class="tag-i">机械设备</span>
+          <span class="up" style="font-size:14px">7只涨停</span>
+        </div>
+        <div class="act-row">
+          <span class="b">三丰智能</span>
+          <span>
+            <span class="up">19.94%</span>
+            <span class="badge badge-a">A</span>
+            
+          </span>
+        </div><div class="act-row">
+          <span class="b">巨轮智能</span>
+          <span>
+            <span class="up">9.95%</span>
+            <span class="badge badge-b">B</span>
+            
+          </span>
+        </div><div class="act-row">
+          <span class="b">隆华科技</span>
+          <span>
+            <span class="up">20.00%</span>
+            <span class="badge badge-b">B</span>
+            
+          </span>
+        </div><div class="act-row">
+          <span class="b">纽威数控</span>
+          <span>
+            <span class="up">20.00%</span>
+            <span class="badge badge-b">B</span>
+            
+          </span>
+        </div><div class="act-row">
+          <span class="b">大业股份</span>
+          <span>
+            <span class="up">9.99%</span>
+            <span class="badge badge-b">B</span>
+            
+          </span>
+        </div>
+      </div><div class="act-item">
+        <div style="font-weight:700;font-size:16px;margin-bottom:4px">
+          <span class="tag-i">电力设备</span>
+          <span class="up" style="font-size:14px">6只涨停</span>
+        </div>
+        <div class="act-row">
+          <span class="b">方正电机</span>
+          <span>
+            <span class="up">10.03%</span>
+            <span class="badge badge-a">A</span>
+            
+          </span>
+        </div><div class="act-row">
+          <span class="b">华新精科</span>
+          <span>
+            <span class="up">10.01%</span>
+            <span class="badge badge-b">B</span>
+            
+          </span>
+        </div><div class="act-row">
+          <span class="b">科力尔</span>
+          <span>
+            <span class="up">9.99%</span>
+            <span class="badge badge-b">B</span>
+            
+          </span>
+        </div><div class="act-row">
+          <span class="b">尚纬股份</span>
+          <span>
+            <span class="up">10.03%</span>
+            <span class="badge badge-b">B</span>
+            
+          </span>
+        </div><div class="act-row">
+          <span class="b">锡华科技</span>
+          <span>
+            <span class="up">9.99%</span>
+            <span class="badge badge-b">B</span>
+            
+          </span>
+        </div>
+      </div><div class="act-item">
+        <div style="font-weight:700;font-size:16px;margin-bottom:4px">
+          <span class="tag-i">轻工制造</span>
+          <span class="up" style="font-size:14px">6只涨停</span>
+        </div>
+        <div class="act-row">
+          <span class="b">蒙娜丽莎</span>
+          <span>
+            <span class="up">9.98%</span>
+            <span class="badge badge-s">S</span>
+            <span style="background:#fff7e6;color:#d46b08;padding:2px 8px;border-radius:3px;font-size:13px;font-weight:700">6连板</span>
+          </span>
+        </div><div class="act-row">
+          <span class="b">中锐股份</span>
+          <span>
+            <span class="up">9.91%</span>
+            <span class="badge badge-b">B</span>
+            
+          </span>
+        </div><div class="act-row">
+          <span class="b">金富科技</span>
+          <span>
+            <span class="up">10.01%</span>
+            <span class="badge badge-b">B</span>
+            <span style="background:#fff7e6;color:#d46b08;padding:2px 8px;border-radius:3px;font-size:13px;font-weight:700">2连板</span>
+          </span>
+        </div><div class="act-row">
+          <span class="b">丰林集团</span>
+          <span>
+            <span class="up">10.11%</span>
+            <span class="badge badge-b">B</span>
+            
+          </span>
+        </div><div class="act-row">
+          <span class="b">高乐股份</span>
+          <span>
+            <span class="up">10.02%</span>
+            <span class="badge badge-b">B</span>
+            
+          </span>
+        </div>
+      </div><div class="act-item">
+        <div style="font-weight:700;font-size:16px;margin-bottom:4px">
+          <span class="tag-i">汽车</span>
+          <span class="up" style="font-size:14px">5只涨停</span>
+        </div>
+        <div class="act-row">
+          <span class="b">中马传动</span>
+          <span>
+            <span class="up">10.02%</span>
+            <span class="badge badge-b">B</span>
+            
+          </span>
+        </div><div class="act-row">
+          <span class="b">通达电气</span>
+          <span>
+            <span class="up">10.04%</span>
+            <span class="badge badge-b">B</span>
+            
+          </span>
+        </div><div class="act-row">
+          <span class="b">北巴传媒</span>
+          <span>
+            <span class="up">10.10%</span>
+            <span class="badge badge-b">B</span>
+            
+          </span>
+        </div><div class="act-row">
+          <span class="b">新坐标</span>
+          <span>
+            <span class="up">10.01%</span>
+            <span class="badge badge-c">C</span>
+            
+          </span>
+        </div><div class="act-row">
+          <span class="b">东风科技</span>
+          <span>
+            <span class="up">10.03%</span>
+            <span class="badge badge-c">C</span>
+            
+          </span>
+        </div>
+      </div>
+  </div>
+</div>
+
+</div>
+
+<!-- 强度评价体系 -->
+<div class="cd">
+  <div class="cd-h"><span class="ico">📐</span>涨停板强度评价体系 (7维24指标)</div>
+  <div style="padding:12px 16px">
+    <table class="tb">
+      <thead><tr><th>维度</th><th>核心指标</th><th>权重</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td class="b">连板动能</td><td>连板天数、板间换手、加速形态</td><td>30%</td><td>连板数越多持续性越强，适度换手最佳</td></tr>
+        <tr><td class="b">资金共识</td><td>主力净流入、量比、龙虎榜阵容</td><td>20%</td><td>主力大额流入+机构/知名游资参与为佳</td></tr>
+        <tr><td class="b">换手量能</td><td>换手率、量比</td><td>15%</td><td>3-15%换手为佳，量比2-5倍有动能</td></tr>
+        <tr><td class="b">板块效应</td><td>同板块涨停数、龙头地位、概念叠加</td><td>10%</td><td>≥3家板块共振强，龙头>跟风</td></tr>
+        <tr><td class="b">龙虎榜</td><td>机构买入、知名游资</td><td>10%</td><td>机构>知名游资>普通游资</td></tr>
+        <tr><td class="b">市值结构</td><td>流通市值、筹码集中度</td><td>10%</td><td>小盘(≤50亿)易连板，大盘需更强动力</td></tr>
+        <tr><td class="b">封板强度</td><td>封板时间、封单比、开板次数</td><td>5%</td><td>开盘涨停>早盘>午盘>尾盘，0开板最强</td></tr>
+      </tbody>
+    </table>
+    <div style="margin-top:6px;font-size:14px;color:var(--t2)">
+      评级：<span class="badge badge-s">S</span> ≥80 极强 &nbsp; <span class="badge badge-a">A</span> ≥60 强 &nbsp; <span class="badge badge-b">B</span> ≥40 中 &nbsp; <span class="badge badge-c">C</span> &lt;40 弱
+    </div>
+  </div>
+</div>
+
+<div class="ftr">
+  <div class="warn">⚠️ 以上内容由 AI 基于公开信息整理生成，仅供参考，不构成任何投资建议或个股推荐。投资有风险，决策需谨慎。</div>
+  <div>数据来源：腾讯自选股 | 生成时间：2026-05-17 05:05:40</div>
+</div>
+
+</div>
+
+<script>
+function sw(v){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));document.querySelectorAll('.tpanel').forEach(t=>t.classList.remove('on'));document.querySelector('.tab[data-v="'+v+'"]').classList.add('on');document.getElementById('p-'+v).classList.add('on')}
+function go(v){sw(v);document.querySelector('.cd').scrollIntoView({behavior:'smooth'})}
+</script>
+</body></html>
