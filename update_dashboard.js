@@ -21,6 +21,35 @@ const WESTOCK_TOOL = 'C:/Users/Administrator/.workbuddy/plugins/marketplaces/exp
 const OUTPUT_DIR = path.resolve(__dirname);
 const OUTPUT_FILE = path.join(OUTPUT_DIR, 'index.html');
 const DATA_FILE = path.join(OUTPUT_DIR, 'data.json');
+const TDX_CONCEPTS_FILE = path.join(OUTPUT_DIR, 'tdx_concepts_local.json');
+const TDX_CONCEPT_STOCKS_FILE = path.join(OUTPUT_DIR, 'tdx_concept_stocks.json');
+
+// 通达信概念数据缓存
+let tdxConceptMap = {};
+let tdxStockConcepts = {};
+
+/**
+ * 加载通达信本地概念数据并构建股票->概念反向索引
+ */
+function loadTdxConceptData() {
+  try {
+    const concepts = JSON.parse(fs.readFileSync(TDX_CONCEPTS_FILE, 'utf-8'));
+    const conceptStocks = JSON.parse(fs.readFileSync(TDX_CONCEPT_STOCKS_FILE, 'utf-8'));
+    tdxConceptMap = concepts.concepts || {};
+    const reverse = {};
+    for (const [conceptCode, stocks] of Object.entries(conceptStocks.concept_stocks || {})) {
+      const conceptName = tdxConceptMap[conceptCode] || conceptCode;
+      for (const stock of stocks) {
+        if (!reverse[stock]) reverse[stock] = [];
+        reverse[stock].push(conceptName);
+      }
+    }
+    tdxStockConcepts = reverse;
+    console.log(`📚 通达信概念数据加载完成: ${Object.keys(tdxConceptMap).length} 个概念, ${Object.keys(tdxStockConcepts).length} 只股票`);
+  } catch (e) {
+    console.error('⚠️ 加载通达信概念数据失败:', e.message);
+  }
+}
 
 // 涨停阈值配置（考虑浮动精度）
 const LIMIT_UP_THRESHOLD = {
@@ -573,7 +602,7 @@ function analyzeData(limitUpCodes, quotes, profiles, capitalFlows, klines, secto
       floatMv: 0,
       consecutiveLimit: 1,
       limitUpStrength: 0,
-      concepts: [],
+      concepts: tdxStockConcepts[code] || [],
       sealTime: '-',
       openCount: 0,
     };
@@ -771,6 +800,27 @@ function analyzeData(limitUpCodes, quotes, profiles, capitalFlows, klines, secto
     activeStocksByIndustry[ind.name] = stocksInInd.slice(0, 5);
   }
 
+  // 通达信概念热度（基于本地概念映射）
+  const conceptHeatMap = {};
+  for (const code of validCodes) {
+    const concepts = stockMap[code].concepts;
+    for (const c of concepts) {
+      if (!conceptHeatMap[c]) conceptHeatMap[c] = { count: 0, totalStrength: 0, codes: [] };
+      conceptHeatMap[c].count++;
+      conceptHeatMap[c].totalStrength += stockMap[code].limitUpStrength;
+      conceptHeatMap[c].codes.push(code);
+    }
+  }
+  const conceptHeat = Object.entries(conceptHeatMap)
+    .map(([name, data]) => ({
+      name,
+      limitCount: data.count,
+      avgStrength: data.count > 0 ? Math.round(data.totalStrength / data.count) : 0,
+      totalStrength: data.totalStrength,
+      codes: data.codes,
+    }))
+    .sort((a, b) => b.limitCount - a.limitCount || b.totalStrength - a.totalStrength);
+
   return {
     stockMap,
     ladderMap,
@@ -780,6 +830,7 @@ function analyzeData(limitUpCodes, quotes, profiles, capitalFlows, klines, secto
     marketDist,
     sectorRankings,
     lhbCodes: [...lhbCodes],
+    conceptHeat,
     generatedAt: new Date().toISOString(),
     tradingDate: quotes[0]?.time?.split(' ')[0] || new Date().toISOString().split('T')[0],
   };
@@ -788,7 +839,7 @@ function analyzeData(limitUpCodes, quotes, profiles, capitalFlows, klines, secto
 // ============ HTML生成 ============
 
 function generateHTML(data) {
-  const { stockMap, ladderMap, industryHeat, industryFlowRank, activeStocksByIndustry, marketDist, sectorRankings, lhbCodes, generatedAt, tradingDate, recommendedConcepts, recommendedConceptsLoose } = data;
+  const { stockMap, ladderMap, industryHeat, industryFlowRank, activeStocksByIndustry, marketDist, sectorRankings, lhbCodes, generatedAt, tradingDate, recommendedConcepts, recommendedConceptsLoose, conceptHeat } = data;
 
   const totalLimitUp = Object.keys(stockMap).length;
   const limitDown = marketDist.summary?.跌停 || '-';
@@ -811,7 +862,11 @@ function generateHTML(data) {
   function pct(v) { return safeFloat(v).toFixed(2); }
   function pctClass(v) { return safeFloat(v) >= 0 ? 'up' : 'dn'; }
   function flowClass(v) { return v >= 0 ? 'up' : 'dn'; }
-  function stockLink(code) { return `https://quote.eastmoney.com/${code}.html`; }
+  function stockLink(code) {
+    // 同花顺个股页面: 去掉 sh/sz/bj 前缀，保留纯数字代码
+    const pureCode = code.replace(/^(sh|sz|bj)/, '');
+    return `https://stockpage.10jqka.com.cn/${pureCode}/`;
+  }
 
   // 连板核心表 - 合并所有层级，用颜色区分
   const allStocksSorted = Object.values(stockMap)
@@ -1049,17 +1104,16 @@ ${(ladderMap['5+'] || []).length > 0 || (ladderMap['4'] || []).length > 0 || (la
 <div class="g2">
 
 <div class="cd">
-  <div class="cd-h"><span class="ico">💡</span>热门概念5日涨幅<span class="sub">聚源产业概念</span></div>
+  <div class="cd-h"><span class="ico">🔥</span>通达信概念涨停热度<span class="sub">按涨停家数排序</span></div>
   <div class="scr" style="max-height:420px">
     <table class="tb">
-      <thead><tr><th>#</th><th>概念</th><th>5日%</th><th>20日%</th><th>60日%</th></tr></thead>
+      <thead><tr><th>#</th><th>概念</th><th>涨停家数</th><th>平均强度</th></tr></thead>
       <tbody>
-        ${conceptTop.map((c, idx) => `<tr>
+        ${(conceptHeat || []).slice(0,30).map((c, idx) => `<tr>
           <td>${idx+1}</td>
-          <td class="b">${c.名称||c.name||'-'}</td>
-          <td class="${pctClass(c['5日%']||c.chg5Days)}">${pct(c['5日%']||c.chg5Days)}%</td>
-          <td class="${pctClass(c['20日%']||c.chg20Days)}">${pct(c['20日%']||c.chg20Days)}%</td>
-          <td class="${pctClass(c['60日%']||c.chg60Days)}">${pct(c['60日%']||c.chg60Days)}%</td>
+          <td class="b">${c.name}</td>
+          <td class="up b" style="font-size:18px">${c.limitCount}</td>
+          <td>${strengthBadge(c.avgStrength)} <span class="m">${c.avgStrength}</span></td>
         </tr>`).join('')}
       </tbody>
     </table>
@@ -1116,7 +1170,10 @@ ${(ladderMap['5+'] || []).length > 0 || (ladderMap['4'] || []).length > 0 || (la
                   <td>${idx+1}</td>
                   <td><span class="bar bar-${barCls}"></span><b>${s.consecutiveLimit}</b></td>
                   <td class="c"><a class="stock-link" href="${stockLink(s.code)}" target="_blank">${s.code}</a></td>
-                  <td class="b"><a class="stock-link" href="${stockLink(s.code)}" target="_blank">${s.name}</a></td>
+                  <td class="b">
+                    <a class="stock-link" href="${stockLink(s.code)}" target="_blank">${s.name}</a>
+                    ${s.concepts && s.concepts.length ? `<div style="margin-top:3px">${s.concepts.slice(0,4).map(c => `<span class="tag-i" style="font-size:12px;padding:1px 6px">${c}</span>`).join('')}</div>` : ''}
+                  </td>
                   <td><span class="tag-i">${s.industry||'-'}</span></td>
                   <td class="up">${pct(s.changePct)}%</td>
                   <td>${pct(s.price)}</td>
@@ -1179,6 +1236,8 @@ async function main() {
   console.log('🚀 涨停板全景看板 - 数据采集开始\n');
   const startTime = Date.now();
 
+  loadTdxConceptData(); // 加载本地通达信概念数据
+
   try {
     // Step 1: 获取市场涨跌分布
     const marketDist = fetchMarketDist();
@@ -1189,7 +1248,14 @@ async function main() {
     console.log(`  找到 ${limitUpCodes.length} 只涨停板股票\n`);
 
     // 获取推荐概念板块 AB版（同时产出严格+放宽）
-    const { strict: recStrict, loose: recLoose } = fetchRecommendedConcepts();
+    let recStrict = [], recLoose = [];
+    try {
+      const rec = fetchRecommendedConcepts();
+      recStrict = rec.strict;
+      recLoose = rec.loose;
+    } catch (e) {
+      console.error('⚠️ 推荐概念板块获取失败:', e.message);
+    }
 
     if (limitUpCodes.length === 0) {
       console.log('⚠️ 今日无涨停板数据，生成空看板...');
