@@ -21,35 +21,6 @@ const WESTOCK_TOOL = 'C:/Users/Administrator/.workbuddy/plugins/marketplaces/exp
 const OUTPUT_DIR = path.resolve(__dirname);
 const OUTPUT_FILE = path.join(OUTPUT_DIR, 'index.html');
 const DATA_FILE = path.join(OUTPUT_DIR, 'data.json');
-const TDX_CONCEPTS_FILE = path.join(OUTPUT_DIR, 'tdx_concepts_local.json');
-const TDX_CONCEPT_STOCKS_FILE = path.join(OUTPUT_DIR, 'tdx_concept_stocks.json');
-
-// 通达信概念数据缓存
-let tdxConceptMap = {};
-let tdxStockConcepts = {};
-
-/**
- * 加载通达信本地概念数据并构建股票->概念反向索引
- */
-function loadTdxConceptData() {
-  try {
-    const concepts = JSON.parse(fs.readFileSync(TDX_CONCEPTS_FILE, 'utf-8'));
-    const conceptStocks = JSON.parse(fs.readFileSync(TDX_CONCEPT_STOCKS_FILE, 'utf-8'));
-    tdxConceptMap = concepts.concepts || {};
-    const reverse = {};
-    for (const [conceptCode, stocks] of Object.entries(conceptStocks.concept_stocks || {})) {
-      const conceptName = tdxConceptMap[conceptCode] || conceptCode;
-      for (const stock of stocks) {
-        if (!reverse[stock]) reverse[stock] = [];
-        reverse[stock].push(conceptName);
-      }
-    }
-    tdxStockConcepts = reverse;
-    console.log(`📚 通达信概念数据加载完成: ${Object.keys(tdxConceptMap).length} 个概念, ${Object.keys(tdxStockConcepts).length} 只股票`);
-  } catch (e) {
-    console.error('⚠️ 加载通达信概念数据失败:', e.message);
-  }
-}
 
 // 涨停阈值配置（考虑浮动精度）
 const LIMIT_UP_THRESHOLD = {
@@ -445,15 +416,15 @@ function fetchRecommendedConcepts() {
       changePct: safeFloat(board.zdf || board.changePct || board['涨跌幅'] || board['5日%'] || board['chg5Days']),
     };
 
-    // 严格版：满6个板块后不再收集
-    if (strictConcepts.length < 6 && strictResult.length > 0) {
+    // 严格版：满8个板块后不再收集
+    if (strictConcepts.length < 8 && strictResult.length > 0) {
       strictConcepts.push({ ...boardInfo, stocks: strictResult });
       strictResult.forEach(s => strictCodes.add(s.code));
     }
 
-    // 备选版：排除严格版已有股票，满6个板块后不再收集
+    // 备选版：排除严格版已有股票，满8个板块后不再收集
     const looseFiltered = looseResult.filter(s => !strictCodes.has(s.code));
-    if (looseConcepts.length < 6 && looseFiltered.length > 0) {
+    if (looseConcepts.length < 8 && looseFiltered.length > 0) {
       looseConcepts.push({ ...boardInfo, stocks: looseFiltered });
     }
 
@@ -602,7 +573,7 @@ function analyzeData(limitUpCodes, quotes, profiles, capitalFlows, klines, secto
       floatMv: 0,
       consecutiveLimit: 1,
       limitUpStrength: 0,
-      concepts: tdxStockConcepts[code] || [],
+      concepts: [],
       sealTime: '-',
       openCount: 0,
     };
@@ -800,27 +771,6 @@ function analyzeData(limitUpCodes, quotes, profiles, capitalFlows, klines, secto
     activeStocksByIndustry[ind.name] = stocksInInd.slice(0, 5);
   }
 
-  // 通达信概念热度（基于本地概念映射）
-  const conceptHeatMap = {};
-  for (const code of validCodes) {
-    const concepts = stockMap[code].concepts;
-    for (const c of concepts) {
-      if (!conceptHeatMap[c]) conceptHeatMap[c] = { count: 0, totalStrength: 0, codes: [] };
-      conceptHeatMap[c].count++;
-      conceptHeatMap[c].totalStrength += stockMap[code].limitUpStrength;
-      conceptHeatMap[c].codes.push(code);
-    }
-  }
-  const conceptHeat = Object.entries(conceptHeatMap)
-    .map(([name, data]) => ({
-      name,
-      limitCount: data.count,
-      avgStrength: data.count > 0 ? Math.round(data.totalStrength / data.count) : 0,
-      totalStrength: data.totalStrength,
-      codes: data.codes,
-    }))
-    .sort((a, b) => b.limitCount - a.limitCount || b.totalStrength - a.totalStrength);
-
   return {
     stockMap,
     ladderMap,
@@ -830,7 +780,6 @@ function analyzeData(limitUpCodes, quotes, profiles, capitalFlows, klines, secto
     marketDist,
     sectorRankings,
     lhbCodes: [...lhbCodes],
-    conceptHeat,
     generatedAt: new Date().toISOString(),
     tradingDate: quotes[0]?.time?.split(' ')[0] || new Date().toISOString().split('T')[0],
   };
@@ -839,7 +788,8 @@ function analyzeData(limitUpCodes, quotes, profiles, capitalFlows, klines, secto
 // ============ HTML生成 ============
 
 function generateHTML(data) {
-  const { stockMap, ladderMap, industryHeat, industryFlowRank, activeStocksByIndustry, marketDist, sectorRankings, lhbCodes, generatedAt, tradingDate, recommendedConcepts, recommendedConceptsLoose, conceptHeat } = data;
+  const { stockMap, ladderMap, industryHeat, industryFlowRank, activeStocksByIndustry, marketDist, sectorRankings, lhbCodes, generatedAt, tradingDate, recommendedConcepts, recommendedConceptsLoose, negativeCodes = [] } = data;
+  const negativeSet = new Set(negativeCodes);
 
   const totalLimitUp = Object.keys(stockMap).length;
   const limitDown = marketDist.summary?.跌停 || '-';
@@ -881,26 +831,36 @@ function generateHTML(data) {
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
-  --bg:#f5f5f7;--card:#fff;--bdr:#e5e5e5;
+  --bg:#f0f0f2;--card:#fff;--bdr:#e8e8ec;
   --t1:#1d1d1f;--t2:#6e6e73;--t3:#aeaeb2;
   --up:#cf1322;--dn:#389e0d;
   --bg-up:#fff1f0;--bg-dn:#f6ffed;
   --blue:#1677ff;--orange:#d46b08;--purple:#531dab;--gold:#d48806;
+  --accent:#faad14;
 }
 html{font-size:16px;-webkit-font-smoothing:antialiased}
 body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--t1);line-height:1.4}
-.wrap{max-width:1480px;margin:0 auto;padding:10px 14px}
+.wrap{max-width:1480px;margin:0 auto;padding:16px 20px}
 
-/* === 头部 === */
-.hdr{background:linear-gradient(135deg,#1d1d1f 0%,#2c2c2e 100%);color:#fff;border-radius:10px;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
-.hdr h1{font-size:24px;font-weight:800;letter-spacing:2px}
-.hdr .meta{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-.hdr .tag{background:rgba(255,255,255,.1);padding:5px 14px;border-radius:6px;font-size:15px;font-weight:600}
-.t-up{color:#ff7875!important}.t-dn{color:#95de64!important}.t-gd{color:#ffd666!important}
+/* === Bento 头部 === */
+.hdr{background:var(--card);border-radius:20px;padding:28px 28px 22px;margin-bottom:16px;box-shadow:0 2px 12px rgba(0,0,0,.06);border:1px solid var(--bdr)}
+.hdr-top{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:18px}
+.hdr-h1{font-size:32px;font-weight:800;color:var(--t1);letter-spacing:-0.5px;margin-bottom:6px}
+.hdr-line{width:48px;height:4px;background:linear-gradient(90deg,var(--accent),#ffd666);border-radius:2px}
+.hdr-date{font-size:14px;color:var(--t3);font-weight:500;display:flex;align-items:center;gap:6px;background:#f8f8fa;padding:8px 16px;border-radius:12px;border:1px solid var(--bdr)}
+.hdr-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}
+.hdr-card{background:#f8f8fa;border-radius:16px;padding:16px 18px;text-align:center;border:1px solid var(--bdr);transition:all .15s}
+.hdr-card:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.08)}
+.hdr-card .lbl{font-size:13px;color:var(--t2);font-weight:500;margin-bottom:4px}
+.hdr-card .num{font-size:28px;font-weight:900;line-height:1.1}
+.hdr-card.up .num{color:var(--up)}
+.hdr-card.dn .num{color:var(--dn)}
+.hdr-card.gd .num{color:var(--gold)}
+.hdr-card .unit{font-size:12px;color:var(--t3);margin-top:2px}
 
 /* === 连板快照 === */
 .snap{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:10px 0}
-.snap-i{background:var(--card);border-radius:8px;padding:10px 8px;text-align:center;box-shadow:0 1px 2px rgba(0,0,0,.06);border:1px solid var(--bdr);cursor:pointer;transition:all .15s}
+.snap-i{background:var(--card);border-radius:16px;padding:10px 8px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.06);border:1px solid var(--bdr);cursor:pointer;transition:all .15s}
 .snap-i:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.1)}
 .snap-i .lbl{font-size:15px;color:var(--t2);font-weight:500}
 .snap-i .num{font-size:36px;font-weight:900;color:var(--up);line-height:1.1}
@@ -910,9 +870,11 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 .snap-i.lv3 .num{color:var(--up)}
 .snap-i.lv2 .num{color:var(--orange)}
 
-/* === 卡片 === */
-.cd{background:var(--card);border-radius:8px;box-shadow:0 1px 2px rgba(0,0,0,.06);border:1px solid var(--bdr);margin-bottom:10px;overflow:hidden}
-.cd-h{padding:10px 16px;font-size:18px;font-weight:700;border-bottom:1px solid var(--bdr);display:flex;align-items:center;gap:8px;background:#fafafa}
+/* === Bento 卡片 === */
+.cd{background:var(--card);border-radius:20px;box-shadow:0 2px 12px rgba(0,0,0,.06);border:1px solid var(--bdr);margin-bottom:16px;overflow:hidden;transition:all .15s}
+.cd:hover{box-shadow:0 4px 20px rgba(0,0,0,.1)}
+.cd-h{padding:14px 20px;font-size:17px;font-weight:700;border-bottom:1px solid var(--bdr);display:flex;align-items:center;gap:10px;background:#fafafa}
+.cd-h .ico{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;background:#e6f7ff;border-radius:8px;font-size:16px}
 .cd-h .ico{font-size:20px}
 .cd-h .sub{margin-left:auto;font-size:13px;color:var(--t3);font-weight:400}
 
@@ -944,14 +906,14 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 .stock-link:hover{color:var(--blue);border-bottom-style:solid}
 
 /* Tab */
-.tabs{display:flex;gap:0;border-bottom:2px solid var(--bdr);background:#fafafa}
-.tab{padding:9px 18px;cursor:pointer;font-size:16px;font-weight:600;color:var(--t2);border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .15s}
-.tab:hover{color:var(--t1)}
-.tab.on{color:var(--up);border-bottom-color:var(--up)}
+.tabs{display:flex;gap:6px;padding:8px 16px;border-bottom:2px solid var(--bdr);background:#fafafa}
+.tab{padding:8px 18px;cursor:pointer;font-size:15px;font-weight:600;color:var(--t2);border-radius:10px;transition:all .15s;background:transparent}
+.tab:hover{background:#e8e8ec;color:var(--t1)}
+.tab.on{background:var(--card);color:var(--up);box-shadow:0 1px 4px rgba(0,0,0,.08)}
 .tpanel{display:none}.tpanel.on{display:block}
 
 /* 双列 */
-.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 
 /* 滚动 */
 .scr{max-height:560px;overflow-y:auto}
@@ -969,7 +931,8 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 
 /* 连板王卡片 */
 .king{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;padding:12px}
-.king-c{background:#fafafa;border-radius:8px;padding:10px 14px;border-left:4px solid var(--up)}
+.king-c{background:#fafafa;border-radius:16px;padding:12px 16px;border-left:4px solid var(--up);transition:all .15s}
+.king-c:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.08)}
 .king-c .kn{font-size:18px;font-weight:800}.king-c .km{font-size:13px;color:var(--t2);margin-top:2px}
 .king-c.lv5{border-left-color:var(--gold);background:#fffbe6}
 .king-c.lv4{border-left-color:var(--purple);background:#f9f0ff}
@@ -984,47 +947,65 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 
 <!-- 头部 -->
 <div class="hdr">
-  <h1>📊 涨停板全景看板</h1>
-  <div class="meta">
-    <span class="tag">📅 ${tradingDate}</span>
-    <span class="tag t-up">涨停 ${totalLimitUp}</span>
-    <span class="tag t-dn">跌停 ${limitDown}</span>
-    <span class="tag">上涨 ${totalUp}</span>
-    <span class="tag">下跌 ${totalDown}</span>
-    <span class="tag t-gd">🔄 ${generatedAt.replace('T',' ').slice(11,16)}</span>
+  <div class="hdr-top">
+    <div>
+      <div class="hdr-h1">涨停板全景看板</div>
+      <div class="hdr-line"></div>
+    </div>
+    <div class="hdr-date">📅 ${tradingDate} · ${generatedAt.replace('T',' ').slice(11,16)} 更新</div>
+  </div>
+  <div class="hdr-meta">
+    <div class="hdr-card up">
+      <div class="lbl">涨停</div>
+      <div class="num">${totalLimitUp}</div>
+      <div class="unit">只</div>
+    </div>
+    <div class="hdr-card dn">
+      <div class="lbl">跌停</div>
+      <div class="num">${limitDown}</div>
+      <div class="unit">只</div>
+    </div>
+    <div class="hdr-card">
+      <div class="lbl">上涨</div>
+      <div class="num">${totalUp}</div>
+      <div class="unit">只</div>
+    </div>
+    <div class="hdr-card">
+      <div class="lbl">下跌</div>
+      <div class="num">${totalDown}</div>
+      <div class="unit">只</div>
+    </div>
+    <div class="hdr-card gd">
+      <div class="lbl">连板最高</div>
+      <div class="num">${Math.max(...Object.values(ladderMap).map(l => l.length > 0 ? parseInt(l[0].consecutiveLimit) : 0), 0)}</div>
+      <div class="unit">板</div>
+    </div>
   </div>
 </div>
 
 <!-- 推荐概念板块 -->
 ${(() => {
-  const renderConcepts = (list, label, color) => `
+  const renderConcepts = (list, label, isRecommended) => `
     <div class="cd" style="margin-bottom:10px">
       <div class="cd-h"><span class="ico">💡</span>${label}</div>
-      <div class="snap" style="grid-template-columns:repeat(3,1fr);padding:0 12px 12px">
-        ${list.map(c => `
-          <div class="snap-i" style="text-align:left;padding:12px 14px;cursor:default">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-              <span style="font-size:15px;font-weight:700;color:var(--t1)">${c.name}</span>
-              <span class="up" style="font-size:15px;font-weight:700">${pct(c.changePct)}%</span>
+      <div class="snap" style="grid-template-columns:repeat(4,1fr);padding:0 12px 12px">
+        ${list.slice(0,8).map(c => `
+          <div class="snap-i" style="text-align:left;padding:14px 16px;cursor:default">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid ${isRecommended ? '#cf1322' : '#d46b08'}">
+              <span style="font-size:17px;font-weight:800;color:${isRecommended ? '#cf1322' : '#d46b08'};letter-spacing:-0.3px">${c.name}</span>
+              <span class="up" style="font-size:16px;font-weight:800">${pct(c.changePct)}%</span>
             </div>
             <div style="display:flex;flex-direction:column;gap:4px">
               ${c.stocks.map(s => {
-                const d5 = s.ma5 > 0 ? ((s.price - s.ma5) / s.ma5 * 100).toFixed(2) : '0.00';
-                const w5 = s.ma5w > 0 ? ((s.price - s.ma5w) / s.ma5w * 100).toFixed(2) : '0.00';
-                return `<div style="display:flex;justify-content:space-between;align-items:center;font-size:14px">
-                  <a class="stock-link" href="${stockLink(s.code)}" target="_blank" style="color:var(--t1);font-weight:600">${s.name}</a>
-                  <span class="${pctClass(s.changePct)}">${pct(s.changePct)}%</span>
-                </div>
-                <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--t3);margin-bottom:4px;padding-left:4px;border-left:2px solid var(--bdr)">
-                  <span class="c">${s.code}</span>
-                  <span>
-                    <span style="margin-right:8px">10日<span class="${pctClass(s.chg10d)}">${pct(s.chg10d)}%</span></span>
-                    <span style="margin-right:8px">3日换手<span style="color:var(--purple);font-weight:600">${pct(s.turnover3d)}%</span></span>
-                    <span style="margin-right:8px">5日<span class="${pctClass(d5)}">${d5}%</span></span>
-                    <span style="margin-right:8px">5周<span class="${pctClass(w5)}">${w5}%</span></span>
-                    <span style="color:var(--dn);font-weight:600">周线多头</span>
-                  </span>
-                </div>`;
+                const isNeg = negativeSet.has(s.code);
+                return `<div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:4px 0;border-bottom:1px solid #f0f0f0;${isNeg ? 'background:#f6ffed;border-radius:6px;padding:4px 8px;' : ''}">
+                <a class="stock-link" href="${stockLink(s.code)}" target="_blank" style="${isNeg ? 'color:#389e0d;' : 'color:#1677ff;'}font-weight:600;font-size:14px">${s.name}${isNeg ? ' ⚠️' : ''}</a>
+                <span style="display:flex;gap:12px;align-items:center">
+                  <span style="${isNeg ? 'color:#389e0d;' : 'color:#531dab;'}font-size:12px;font-weight:500">换手 ${pct(s.turnover3d)}%</span>
+                  <span style="${isNeg ? 'color:#389e0d;' : 'color:#d46b08;'}font-size:12px;font-weight:500">10日 ${pct(s.chg10d)}%</span>
+                  <span class="${pctClass(s.changePct)}" style="font-weight:800;min-width:52px;text-align:right;font-size:14px;${isNeg ? 'color:#389e0d!important;' : ''}">${pct(s.changePct)}%</span>
+                </span>
+              </div>`;
               }).join('')}
             </div>
           </div>
@@ -1032,8 +1013,8 @@ ${(() => {
       </div>
     </div>
   `;
-  return ((recommendedConcepts || []).length > 0 ? renderConcepts(recommendedConcepts, '推荐概念板块', '#cf1322') : '')
-       + ((recommendedConceptsLoose || []).length > 0 ? renderConcepts(recommendedConceptsLoose, '备选概念板块', '#d46b08') : '');
+  return ((recommendedConcepts || []).length > 0 ? renderConcepts(recommendedConcepts, '推荐概念板块', true) : '')
+       + ((recommendedConceptsLoose || []).length > 0 ? renderConcepts(recommendedConceptsLoose, '备选概念板块', false) : '');
 })()}
 
 <!-- 连板王 -->
@@ -1041,8 +1022,8 @@ ${(ladderMap['5+'] || []).length > 0 || (ladderMap['4'] || []).length > 0 || (la
 <div class="cd">
   <div class="cd-h"><span class="ico">👑</span>连板王<span class="sub">3板及以上</span></div>
   <div class="king">
-    ${[...(ladderMap['5+'] || []), ...(ladderMap['4'] || []), ...(ladderMap['3'] || [])]
-      .sort((a,b) => b.consecutiveLimit - a.consecutiveLimit || b.limitUpStrength - a.limitUpStrength)
+    ${[...(ladderMap['3'] || []), ...(ladderMap['4'] || []), ...(ladderMap['5+'] || [])]
+      .sort((a,b) => a.consecutiveLimit - b.consecutiveLimit || b.limitUpStrength - a.limitUpStrength)
       .map(s => {
         const lv = s.consecutiveLimit >= 5 ? 'lv5' : s.consecutiveLimit === 4 ? 'lv4' : 'lv3';
         return `<div class="king-c ${lv}">
@@ -1078,23 +1059,50 @@ ${(ladderMap['5+'] || []).length > 0 || (ladderMap['4'] || []).length > 0 || (la
 </div>
 
 <div class="cd">
-  <div class="cd-h"><span class="ico">💰</span>行业资金流向<span class="sub">按主力净流入排序</span></div>
-  <div class="scr" style="max-height:420px">
-    <table class="tb">
-      <thead><tr><th>#</th><th>行业</th><th>主力净流入</th><th>涨停</th><th>代表个股</th></tr></thead>
-      <tbody>
-        ${industryFlowTop.map((ind, idx) => {
-          const ts = (activeStocksByIndustry[ind.name]||[]).slice(0,3);
-          return `<tr>
-            <td>${idx+1}</td>
-            <td class="b">${ind.name}</td>
-            <td class="${flowClass(ind.mainNetFlow)} b" style="font-size:16px">${fc(ind.mainNetFlow)}</td>
-            <td class="up">${ind.limitCount}</td>
-            <td class="m">${ts.map(s=>`<a class="stock-link" href="${stockLink(s.code)}" target="_blank">${s.name}</a>`).join('、')}</td>
-          </tr>`;
-        }).join('')}
-      </tbody>
-    </table>
+  <div class="cd-h"><span class="ico">💰</span>行业资金流向<span class="sub">按主力净流入占比</span></div>
+  <div style="padding:16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+    ${(() => {
+      const colors = ['#1677ff','#faad14','#52c41a','#f5222d','#531dab','#13c2c2','#eb2f96'];
+      const top = industryFlowTop.slice(0,7);
+      const total = top.reduce((s,i) => s + Math.abs(i.mainNetFlow||0), 0);
+      if (total === 0) return '<div style="color:var(--t3)">暂无数据</div>';
+      let startAngle = -90;
+      const cx=100,cy=100,r=70,th=24;
+      const arcs = top.map((ind, idx) => {
+        const v = Math.abs(ind.mainNetFlow||0);
+        const pct = v / total;
+        const angle = pct * 360;
+        const endAngle = startAngle + angle;
+        const sRad = (startAngle * Math.PI) / 180;
+        const eRad = (endAngle * Math.PI) / 180;
+        const x1 = cx + r * Math.cos(sRad), y1 = cy + r * Math.sin(sRad);
+        const x2 = cx + r * Math.cos(eRad), y2 = cy + r * Math.sin(eRad);
+        const lx1 = cx + (r-th) * Math.cos(eRad), ly1 = cy + (r-th) * Math.sin(eRad);
+        const lx2 = cx + (r-th) * Math.cos(sRad), ly2 = cy + (r-th) * Math.sin(sRad);
+        const large = angle > 180 ? 1 : 0;
+        const d = `M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} L ${lx1} ${ly1} A ${r-th} ${r-th} 0 ${large} 0 ${lx2} ${ly2} Z`;
+        const midAngle = startAngle + angle/2;
+        const mRad = (midAngle * Math.PI) / 180;
+        const tx = cx + (r+28) * Math.cos(mRad);
+        const ty = cy + (r+28) * Math.sin(mRad);
+        startAngle = endAngle;
+        return { d, color: colors[idx % colors.length], name: ind.name, pct: (pct*100).toFixed(1), tx, ty, mainNetFlow: ind.mainNetFlow };
+      });
+      return `<svg width="220" height="220" viewBox="0 0 200 200" style="flex-shrink:0">
+        ${arcs.map(a => `<path d="${a.d}" fill="${a.color}" opacity="0.88"/>`).join('')}
+        <text x="100" y="95" text-anchor="middle" font-size="12" fill="#8c8c8c">主力净流入</text>
+        <text x="100" y="115" text-anchor="middle" font-size="16" font-weight="800" fill="#1d1d1f">${(total/1e8).toFixed(1)}亿</text>
+      </svg>
+      <div style="flex:1;min-width:160px">
+        ${arcs.map((a, idx) => `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f5f5f5;font-size:13px">
+          <span style="display:flex;align-items:center;gap:6px">
+            <span style="width:10px;height:10px;border-radius:3px;background:${a.color}"></span>
+            <span style="font-weight:600">${a.name}</span>
+          </span>
+          <span class="${flowClass(a.mainNetFlow)}" style="font-weight:700">${(a.mainNetFlow/1e8).toFixed(1)}亿 (${a.pct}%)</span>
+        </div>`).join('')}
+      </div>`;
+    })()}
   </div>
 </div>
 
@@ -1104,16 +1112,17 @@ ${(ladderMap['5+'] || []).length > 0 || (ladderMap['4'] || []).length > 0 || (la
 <div class="g2">
 
 <div class="cd">
-  <div class="cd-h"><span class="ico">🔥</span>通达信概念涨停热度<span class="sub">按涨停家数排序</span></div>
+  <div class="cd-h"><span class="ico">🔥</span>概念板块涨幅<span class="sub">聚源产业概念 5日涨幅排行</span></div>
   <div class="scr" style="max-height:420px">
     <table class="tb">
-      <thead><tr><th>#</th><th>概念</th><th>涨停家数</th><th>平均强度</th></tr></thead>
+      <thead><tr><th>#</th><th>概念</th><th>5日%</th><th>10日%</th><th>20日%</th></tr></thead>
       <tbody>
-        ${(conceptHeat || []).slice(0,30).map((c, idx) => `<tr>
+        ${(sectorRankings.industry || []).slice(0,30).map((c, idx) => `<tr>
           <td>${idx+1}</td>
-          <td class="b">${c.name}</td>
-          <td class="up b" style="font-size:18px">${c.limitCount}</td>
-          <td>${strengthBadge(c.avgStrength)} <span class="m">${c.avgStrength}</span></td>
+          <td class="b">${c.name || c.板块名称 || '-'}</td>
+          <td class="${pctClass(c.chg5Days || c['5日%'] || 0)} b">${pct(c.chg5Days || c['5日%'] || 0)}%</td>
+          <td class="${pctClass(c.chg10Days || c['10日%'] || 0)}">${pct(c.chg10Days || c['10日%'] || 0)}%</td>
+          <td class="${pctClass(c.chg20Days || c['20日%'] || 0)}">${pct(c.chg20Days || c['20日%'] || 0)}%</td>
         </tr>`).join('')}
       </tbody>
     </table>
@@ -1172,7 +1181,6 @@ ${(ladderMap['5+'] || []).length > 0 || (ladderMap['4'] || []).length > 0 || (la
                   <td class="c"><a class="stock-link" href="${stockLink(s.code)}" target="_blank">${s.code}</a></td>
                   <td class="b">
                     <a class="stock-link" href="${stockLink(s.code)}" target="_blank">${s.name}</a>
-                    ${s.concepts && s.concepts.length ? `<div style="margin-top:3px">${s.concepts.slice(0,4).map(c => `<span class="tag-i" style="font-size:12px;padding:1px 6px">${c}</span>`).join('')}</div>` : ''}
                   </td>
                   <td><span class="tag-i">${s.industry||'-'}</span></td>
                   <td class="up">${pct(s.changePct)}%</td>
@@ -1236,8 +1244,6 @@ async function main() {
   console.log('🚀 涨停板全景看板 - 数据采集开始\n');
   const startTime = Date.now();
 
-  loadTdxConceptData(); // 加载本地通达信概念数据
-
   try {
     // Step 1: 获取市场涨跌分布
     const marketDist = fetchMarketDist();
@@ -1300,6 +1306,31 @@ async function main() {
     analysis.recommendedConcepts = recStrict;
     analysis.recommendedConceptsLoose = recLoose;
 
+    // Step 6.5: 检测推荐股票利空信息
+    let negativeCodes = [];
+    try {
+      const allRecCodes = [...new Set([
+        ...recStrict.flatMap(c => c.stocks.map(s => s.code)),
+        ...recLoose.flatMap(c => c.stocks.map(s => s.code)),
+      ])];
+      if (allRecCodes.length > 0) {
+        console.log(`\n🔍 检测 ${allRecCodes.length} 只推荐股票的利空公告...`);
+        const pyResult = execSync(
+          `python3 "${path.join(OUTPUT_DIR, 'check_negative.py')}" '${JSON.stringify(allRecCodes)}'`,
+          { encoding: 'utf-8', timeout: 120000 }
+        );
+        negativeCodes = JSON.parse(pyResult.trim());
+        if (negativeCodes.length > 0) {
+          console.log(`  ⚠️ 发现 ${negativeCodes.length} 只有利空: ${negativeCodes.join(', ')}`);
+        } else {
+          console.log('  ✅ 未发现利空公告');
+        }
+      }
+    } catch (e) {
+      console.error('⚠️ 利空检测失败:', e.message);
+    }
+    analysis.negativeCodes = negativeCodes;
+
     // Step 7: 保存数据备份
     fs.writeFileSync(DATA_FILE, JSON.stringify(analysis, null, 2), 'utf-8');
     console.log(`\n💾 数据已保存: ${DATA_FILE}`);
@@ -1307,6 +1338,25 @@ async function main() {
     // Step 8: 生成HTML
     const html = generateHTML(analysis);
     fs.writeFileSync(OUTPUT_FILE, html, 'utf-8');
+
+    // Step 8.5: 导出推荐股票到Excel
+    try {
+      const exportData = {
+        strict: recStrict,
+        loose: recLoose,
+        negativeCodes: analysis.negativeCodes || [],
+      };
+      const exportJsonPath = path.join(OUTPUT_DIR, 'export_data.json');
+      const exportXlsPath = 'C:/Users/Administrator/Desktop/推荐股票.xlsx';
+      fs.writeFileSync(exportJsonPath, JSON.stringify(exportData), 'utf-8');
+      const pyExportResult = execSync(
+        `python3 "${path.join(OUTPUT_DIR, 'export_excel.py')}" "${exportJsonPath}" "${exportXlsPath}"`,
+        { encoding: 'utf-8', timeout: 60000 }
+      );
+      console.log(`  ${pyExportResult.trim()}`);
+    } catch (e) {
+      console.error('⚠️ Excel导出失败:', e.message);
+    }
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     const verifiedCount = Object.keys(analysis.stockMap).length;
