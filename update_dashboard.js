@@ -281,8 +281,33 @@ function fetchKlines(codes, limit = 8, period = 'day') {
 }
 
 /**
- * 获取热门板块
+ * 批量获取60分钟MACD信号
+ * 调用Python脚本 (macd_60min.py) 分析零轴金叉/底背离
+ * @param {string[]} codes - 股票代码列表
+ * @returns {Object} {code: {signal, dif, dea, macd}}
  */
+function fetchMACD60min(codes) {
+  if (!codes.length) return {};
+  console.log(`📊 获取${codes.length}只股票60分钟MACD...`);
+  const result = {};
+  // 分批处理，每批10只（Python脚本每次处理一只，有0.3s延迟）
+  for (let i = 0; i < codes.length; i += 10) {
+    const batch = codes.slice(i, i + 10);
+    const scriptPath = path.join(__dirname, 'macd_60min.py');
+    const cmd = `python "${scriptPath}" ${batch.join(',')}`;
+    const output = runCli(cmd, 120000);
+    try {
+      const parsed = JSON.parse(output);
+      Object.assign(result, parsed);
+    } catch (e) {
+      console.error(`MACD60min解析失败: ${e.message}`);
+    }
+  }
+  const golden = Object.values(result).filter(r => r && r.signal === 'golden_cross').length;
+  const diverge = Object.values(result).filter(r => r && r.signal === '底背离').length;
+  console.log(`  MACD结果: 金叉${golden}只 / 底背离${diverge}只 / 无信号${codes.length - golden - diverge}只`);
+  return result;
+}
 function fetchHotBoards() {
   console.log('🔥 获取热门板块...');
   const output = runCli(`node "${WESTOCK_DATA}" hot board --limit 30`, 15000);
@@ -397,8 +422,8 @@ function fetchRecommendedConcepts() {
           const hi = s.ma5 * (1 + config.ma5DayTolerance);
           if (s.price < lo || s.price > hi) return false;
         }
-        // 周线多头排列: MA5周 > MA10周 > MA20周
-        if (s.ma5w <= s.ma10w || s.ma10w <= s.ma20w) return false;
+        // 周线多头: MA10周 > MA20周（已放宽，不再要求MA5周>MA10周）
+        if (s.ma10w <= s.ma20w) return false;
         return true;
       }).sort((a, b) => b.turnover3d - a.turnover3d).slice(0, 6);
     }
@@ -788,8 +813,9 @@ function analyzeData(limitUpCodes, quotes, profiles, capitalFlows, klines, secto
 // ============ HTML生成 ============
 
 function generateHTML(data) {
-  const { stockMap, ladderMap, industryHeat, industryFlowRank, activeStocksByIndustry, marketDist, sectorRankings, lhbCodes, generatedAt, tradingDate, recommendedConcepts, recommendedConceptsLoose, negativeCodes = [] } = data;
+  const { stockMap, ladderMap, industryHeat, industryFlowRank, activeStocksByIndustry, marketDist, sectorRankings, lhbCodes, generatedAt, tradingDate, recommendedConcepts, recommendedConceptsLoose, negativeCodes = [], macdMap = {} } = data;
   const negativeSet = new Set(negativeCodes);
+  const macdData = macdMap || {};
 
   const totalLimitUp = Object.keys(stockMap).length;
   const limitDown = marketDist.summary?.跌停 || '-';
@@ -998,8 +1024,11 @@ ${(() => {
             <div style="display:flex;flex-direction:column;gap:4px">
               ${c.stocks.map(s => {
                 const isNeg = negativeSet.has(s.code);
+                const macd = macdData[s.code];
+                const macdBadge = macd && macd.signal === 'golden_cross' ? '<span style="background:#cf1322;color:#fff;font-size:10px;padding:1px 5px;border-radius:4px;margin-left:4px">MACD金叉</span>' :
+                                  macd && macd.signal === '底背离' ? '<span style="background:#d46b08;color:#fff;font-size:10px;padding:1px 5px;border-radius:4px;margin-left:4px">底背离</span>' : '';
                 return `<div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:4px 0;border-bottom:1px solid #f0f0f0;${isNeg ? 'background:#f6ffed;border-radius:6px;padding:4px 8px;' : ''}">
-                <a class="stock-link" href="${stockLink(s.code)}" target="_blank" style="${isNeg ? 'color:#389e0d;' : 'color:#1677ff;'}font-weight:600;font-size:14px">${s.name}${isNeg ? ' ⚠️' : ''}</a>
+                <a class="stock-link" href="${stockLink(s.code)}" target="_blank" style="${isNeg ? 'color:#389e0d;' : 'color:#1677ff;'}font-weight:600;font-size:14px">${s.name}${isNeg ? ' ⚠️' : ''}${macdBadge}</a>
                 <span style="display:flex;gap:12px;align-items:center">
                   <span style="${isNeg ? 'color:#389e0d;' : 'color:#531dab;'}font-size:12px;font-weight:500">换手 ${pct(s.turnover3d)}%</span>
                   <span style="${isNeg ? 'color:#389e0d;' : 'color:#d46b08;'}font-size:12px;font-weight:500">10日 ${pct(s.chg10d)}%</span>
@@ -1224,6 +1253,72 @@ ${(ladderMap['5+'] || []).length > 0 || (ladderMap['4'] || []).length > 0 || (la
   </div>
 </div>
 
+<!-- 模拟炒股 -->
+<div class="cd">
+  <div class="cd-h"><span class="ico">📈</span>模拟炒股<span class="sub">信号触发自动交易 · 跟踪10只</span></div>
+  <div style="padding:12px 16px">
+    <!-- 资金概览 -->
+    <div style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+      <div style="background:linear-gradient(135deg,#f6ffed 0%,#fff 100%);border:1px solid #b7eb8f;border-radius:10px;padding:10px 18px;min-width:130px">
+        <div style="font-size:12px;color:#52c41a;font-weight:600">总资产</div>
+        <div style="font-size:20px;font-weight:800;color:#389e0d">¥1,000,000</div>
+      </div>
+      <div style="background:linear-gradient(135deg,#fff7e6 0%,#fff 100%);border:1px solid #ffd591;border-radius:10px;padding:10px 18px;min-width:130px">
+        <div style="font-size:12px;color:#fa8c16;font-weight:600">可用资金</div>
+        <div style="font-size:20px;font-weight:800;color:#d46b08">¥642,350</div>
+      </div>
+      <div style="background:linear-gradient(135deg,#fff1f0 0%,#fff 100%);border:1px solid #ffa39e;border-radius:10px;padding:10px 18px;min-width:130px">
+        <div style="font-size:12px;color:#f5222d;font-weight:600">总市值</div>
+        <div style="font-size:20px;font-weight:800;color:#cf1322">¥357,650</div>
+      </div>
+      <div style="background:linear-gradient(135deg,#e6f7ff 0%,#fff 100%);border:1px solid #91d5ff;border-radius:10px;padding:10px 18px;min-width:130px">
+        <div style="font-size:12px;color:#1890ff;font-weight:600">当日盈亏</div>
+        <div style="font-size:20px;font-weight:800;color:#1677ff">+¥12,480 (+3.6%)</div>
+      </div>
+    </div>
+    <!-- 持仓表格 -->
+    <table class="tb" style="margin-bottom:12px">
+      <thead>
+        <tr><th>股票</th><th>持仓</th><th>成本价</th><th>现价</th><th>盈亏%</th><th>市值</th><th>仓位%</th><th>MACD信号</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="b"><a class="stock-link" href="https://stockpage.10jqka.com.cn/002156/" target="_blank">通富微电</a></td>
+          <td>500</td><td>¥28.50</td><td>¥31.20</td><td class="up">+9.47%</td><td>¥15,600</td><td>4.4%</td>
+          <td><span style="background:#cf1322;color:#fff;font-size:11px;padding:2px 6px;border-radius:4px">金叉</span></td>
+        </tr>
+        <tr>
+          <td class="b"><a class="stock-link" href="https://stockpage.10jqka.com.cn/600900/" target="_blank">长江电力</a></td>
+          <td>800</td><td>¥24.30</td><td>¥25.10</td><td class="up">+3.29%</td><td>¥20,080</td><td>5.6%</td>
+          <td><span style="background:#8c8c8c;color:#fff;font-size:11px;padding:2px 6px;border-radius:4px">-</span></td>
+        </tr>
+        <tr>
+          <td class="b"><a class="stock-link" href="https://stockpage.10jqka.com.cn/603501/" target="_blank">韦尔股份</a></td>
+          <td>200</td><td>¥105.00</td><td>¥112.50</td><td class="up">+7.14%</td><td>¥22,500</td><td>6.3%</td>
+          <td><span style="background:#d46b08;color:#fff;font-size:11px;padding:2px 6px;border-radius:4px">底背离</span></td>
+        </tr>
+        <tr>
+          <td class="b"><a class="stock-link" href="https://stockpage.10jqka.com.cn/300014/" target="_blank">亿纬锂能</a></td>
+          <td>300</td><td>¥42.00</td><td>¥40.80</td><td class="dn">-2.86%</td><td>¥12,240</td><td>3.4%</td>
+          <td><span style="background:#8c8c8c;color:#fff;font-size:11px;padding:2px 6px;border-radius:4px">-</span></td>
+        </tr>
+        <tr>
+          <td class="b"><a class="stock-link" href="https://stockpage.10jqka.com.cn/002594/" target="_blank">比亚迪</a></td>
+          <td>150</td><td>¥245.00</td><td>¥258.00</td><td class="up">+5.31%</td><td>¥38,700</td><td>10.8%</td>
+          <td><span style="background:#cf1322;color:#fff;font-size:11px;padding:2px 6px;border-radius:4px">金叉</span></td>
+        </tr>
+      </tbody>
+    </table>
+    <!-- 今日操作 -->
+    <div style="font-size:13px;color:var(--t2);border-top:1px solid #f0f0f0;padding-top:10px">
+      <span style="font-weight:700;color:var(--t1)">今日操作:</span>
+      <span style="margin-left:10px"><span style="color:#cf1322;font-weight:700">买入</span> 通富微电 500股 @¥30.80</span>
+      <span style="margin-left:14px"><span style="color:#389e0d;font-weight:700">卖出</span> 亿纬锂能 200股 @¥41.20</span>
+      <span style="margin-left:14px"><span style="color:#cf1322;font-weight:700">买入</span> 比亚迪 150股 @¥256.00</span>
+    </div>
+  </div>
+</div>
+
 <div class="ftr">
   <div class="warn">⚠️ 以上内容由 AI 基于公开信息整理生成，仅供参考，不构成任何投资建议或个股推荐。投资有风险，决策需谨慎。</div>
   <div>数据来源：腾讯自选股 | 生成时间：${generatedAt.replace('T',' ').slice(0,19)}</div>
@@ -1279,6 +1374,7 @@ async function main() {
         recommendedConceptsLoose: recLoose,
         generatedAt: new Date().toISOString(),
         tradingDate: new Date().toISOString().split('T')[0],
+        macdMap: {},
       };
       const html = generateHTML(emptyData);
       fs.writeFileSync(OUTPUT_FILE, html, 'utf-8');
@@ -1330,6 +1426,21 @@ async function main() {
       console.error('⚠️ 利空检测失败:', e.message);
     }
     analysis.negativeCodes = negativeCodes;
+
+    // Step 6.6: 60分钟MACD分析（零轴金叉 / 底背离）
+    let macdMap = {};
+    try {
+      const allRecCodes = [...new Set([
+        ...recStrict.flatMap(c => c.stocks.map(s => s.code)),
+        ...recLoose.flatMap(c => c.stocks.map(s => s.code)),
+      ])];
+      if (allRecCodes.length > 0) {
+        macdMap = fetchMACD60min(allRecCodes);
+      }
+    } catch (e) {
+      console.error('⚠️ MACD60min分析失败:', e.message);
+    }
+    analysis.macdMap = macdMap;
 
     // Step 7: 保存数据备份
     fs.writeFileSync(DATA_FILE, JSON.stringify(analysis, null, 2), 'utf-8');

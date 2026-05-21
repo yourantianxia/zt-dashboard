@@ -1,0 +1,274 @@
+🚀 涨停板全景看板 - 数据采集开始
+
+📊 获取市场涨跌分布...
+📈 获取涨停板候选股票（宽网）...
+  候选股票共 73 只（含ST/北交所），待精确验证
+  找到 73 只涨停板股票
+
+💡 获取推荐概念板块 AB对比版...
+🔥 获取热门板块...
+  电力: 成份股102只，截取前100只
+💹 获取100只股票行情...
+  [batch 1/7] 15 items
+  [batch 1] parsed 15 rows
+  [batch 2/7] 15 items
+  [batch 2] parsed 15 rows
+  [batch 3/7] 15 items
+  [batch 3] parsed 15 rows
+  [batch 4/7] 15 items
+  [batch 4] parsed 15 rows
+  [batch 5/7] 15 items
+  [batch 5] parsed 15 rows
+  [batch 6/7] 15 items
+  [batch 6] parsed 15 rows
+  [batch 7/7] 10 items
+  [batch 7] parsed 10 rows
+📉 获取50只股票dayK线...
+📉 获取50只股票weekK线...
+  电力: 50只候选 → 严格2只 / 备选5只(原6)
+  半导体: 成份股177只，截取前100只
+💹 获取100只股票行情...
+  [batch 1/7] 15 items
+  [batch 1] parsed 15 rows
+  [batch 2/7] 15 items
+  [batch 2] parsed 15 rows
+  [batch 3/7] 15 items
+  [batch 3] parsed 15 rows
+  [batch 4/7] 15 items
+  [batch 4] parsed 15 rows
+  [batch 5/7] 15 items
+  [batch 5] parsed 15 rows
+  [batch 6/7] 15 items
+  [batch 6] parsed 15 rows
+  [batch 7/7] 10 items
+  [batch 7] parsed 10 rows
+📉 获取50只股票dayK线...
+📉 获取50只股票weekK线...
+  半导体: 47只候选 → 严格2只 / 备选6只(原6)
+💹 获取25只股票行情...
+  [batch 1/2] 15 items
+  [batch 1] parsed 15 rows
+  [batch 2/2] 10 items
+  [batch 2] parsed 10 rows
+📉 获取19只股票dayK线...
+📉 获取19只股票weekK线...
+  昨日连板: 19只候选 → 严格0只 / 备选6只(原6)
+  存储器: 成份股179只，截取前100只
+💹 获取100只股票行情...
+  [batch 1/7] 15 items
+  [batch 1] parsed 15 rows
+  [batch 2/7] 15 items
+  [batch 2] parsed 15 rows
+  [batch 3/7] 15 items
+  [batch 3] parsed 15 rows
+  [batch 4/7] 15 items
+  [batch 4] parsed 15 rows
+  [batch 5/7] 15 items
+  [batch 5] parsed 15 rows
+  [batch 6/7] 15 items
+  [batch 6] parsed 15 rows
+  [batch 7/7] 10 items
+  [batch 7] parsed 10 rows
+📉 获取50只股票dayK线...
+📉 获取50只股票weekK线...
+  存储器: 48只候选 → 严格3只 / 备选6只(原6)
+  电网设备: 成份股138只，截取前100只
+💹 获取100只股票行情...
+  [batch 1/7] 15 items
+  [batch 1] parsed 15 rows
+  [batch 2/7] 15 items
+  [batch 2] parsed 15 rows
+  [batch 3/7] 15 items
+  [batch 3] parsed 15 rows
+  [batch 4/7] 15 items
+  [batch 4] parsed 15 rows
+  [batch 5/7] 15 items
+  [batch 5] parsed 15 rows
+  [batch 6/7] 15 items
+  [batch 6] parsed 15 rows
+  [batch 7/7] 10 items
+  [batch 7] parsed 10 rows
+📉 获取50只股票dayK线...
+📉 获取50只股票weekK线...
+  电网设备: 50只候选 → 严格3只 / 备选5只(原6)
+💹 获取88只股票行情...
+  [batch 1/6] 15 items
+  [batch 1] parsed 15 rows
+  [batch 2/6] 15 items
+  [batch 2] parsed 15 rows
+  [batch 3/6] 15 items
+  [batch 3] parsed 15 rows
+  [batch 4/6] 15 items
+  [batch 4] parsed 15 rows
+  [batch 5/6] 15 items
+  [batch 5] parsed 15 rows
+  [batch 6/6] 13 items
+  [batch 6] parsed 13 rows
+📉 获取50只股票dayK线...
+📉 获取50只股票weekK线...
+  房地产开发: 50只候选 → 严格0只 / 备选5只(原5)
+💹 获取88只股票行情...
+  [batch 1/6] 15 items
+  [batch 1] parsed 15 rows
+  [batch 2/6] 15 items
+  [batch 2] parsed 15 rows
+  [batch 3/6] 15 items
+  [batch 3] parsed 15 rows
+  [batch 4/6] 15 items
+  [batch 4] parsed 15 rows
+  [batch 5/6] 15 items
+  [batch 5] parsed 15 rows
+  [batch 6/6] 13 items
+  [batch 6] parsed 13 rows
+📉 获取50只股票dayK线...
+📉 获取50只股票weekK线...
+  通信设备: 50只候选 → 严格6只 / 备选4只(原6)
+💹 获取63只股票行情...
+  [batch 1/5] 15 items
+  [batch 1] parsed 15 rows
+  [batch 2/5] 15 items
+  [batch 2] parsed 15 rows
+  [batch 3/5] 15 items
+  [batch 3] parsed 15 rows
+  [batch 4/5] 15 items
+  [batch 4] parsed 15 rows
+  [batch 5/5] 3 items
+  [batch 5] parsed 3 rows
+📉 获取50只股票dayK线...
+📉 获取50只股票weekK线...
+  元件: 49只候选 → 严格6只 / 备选5只(原6)
+  推荐概念板块: 严格6个 / 备选8个
+💹 获取73只股票行情...
+  [batch 1/5] 15 items
+  [batch 1] parsed 15 rows
+  [batch 2/5] 15 items
+  [batch 2] parsed 15 rows
+  [batch 3/5] 15 items
+  [batch 3] parsed 15 rows
+  [batch 4/5] 15 items
+  [batch 4] parsed 15 rows
+  [batch 5/5] 13 items
+  [batch 5] parsed 13 rows
+🏢 获取73只股票简况...
+  [batch 1/5] 15 items
+  [batch 1] parsed 15 rows
+  [batch 2/5] 15 items
+  [batch 2] parsed 15 rows
+  [batch 3/5] 15 items
+  [batch 3] parsed 15 rows
+  [batch 4/5] 15 items
+  [batch 4] parsed 15 rows
+  [batch 5/5] 13 items
+  [batch 5] parsed 13 rows
+💰 获取73只股票资金流向...
+  [batch 1/5] 15 items
+  [batch 1] parsed 15 rows
+  [batch 2/5] 15 items
+  [batch 2] parsed 15 rows
+  [batch 3/5] 15 items
+  [batch 3] parsed 15 rows
+  [batch 4/5] 15 items
+  [batch 4] parsed 15 rows
+  [batch 5/5] 13 items
+  [batch 5] parsed 13 rows
+📉 获取73只股票dayK线...
+📊 获取板块涨幅排行...
+🐯 获取龙虎榜...
+🔬 综合分析数据...
+  候选 73 只 → 验证通过 21 只，排除 52 只
+    ❌ sh688361 中科飞测: 未封涨停(价249.87 < 涨停价264.6, 涨幅13.32%)
+    ❌ sz300873 海晨股份: 未封涨停(价23.66 < 涨停价25.56, 涨幅11.08%)
+    ❌ sz300286 安科瑞: 未封涨停(价28.65 < 涨停价30.89, 涨幅11.31%)
+    ❌ sh688584 上海合晶: 未封涨停(价29.54 < 涨停价32.16, 涨幅10.22%)
+    ❌ sz301013 利和兴: 未封涨停(价34.97 < 涨停价36.36, 涨幅15.41%)
+    ❌ sz300222 科大智能: 未封涨停(价15.7 < 涨停价16.85, 涨幅11.82%)
+    ❌ sh688368 晶丰明源: 未封涨停(价213.88 < 涨停价232.98, 涨幅10.16%)
+    ❌ sz002718 友邦吊顶: 未封涨停(价86.01 < 涨停价87.18, 涨幅8.53%)
+    ❌ sz301682 宏明电子: 未封涨停(价165.5 < 涨停价186.53, 涨幅6.47%)
+    ❌ sz300164 通源石油: 未封涨停(价13.87 < 涨停价15.5, 涨幅7.35%)
+    ... 还有 42 只被排除
+
+🔍 检测 60 只推荐股票的利空公告...
+  ✅ 未发现利空公告
+
+💾 数据已保存: C:\Users\Administrator\WorkBuddy\zt-dashboard-build\data.json
+Traceback (most recent call last):
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\pandas\io\excel\_base.py", line 1171, in __new__
+    engine = config.get_option(f"io.excel.{ext}.writer")
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\pandas\_config\config.py", line 187, in get_option
+    key = _get_single_key(pat)
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\pandas\_config\config.py", line 131, in _get_single_key
+    raise OptionError(f"No such keys(s): {pat!r}")
+pandas.errors.OptionError: No such keys(s): 'io.excel.xlsxx.writer'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Administrator\WorkBuddy\zt-dashboard-build\export_excel.py", line 73, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\Administrator\WorkBuddy\zt-dashboard-build\export_excel.py", line 69, in main
+    df.to_excel(output_xlsx, index=False, sheet_name='推荐股票')
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\pandas\core\generic.py", line 2312, in to_excel
+    formatter.write(
+    ~~~~~~~~~~~~~~~^
+        excel_writer,
+        ^^^^^^^^^^^^^
+    ...<6 lines>...
+        engine_kwargs=engine_kwargs,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\pandas\io\formats\excel.py", line 1003, in write
+    writer = ExcelWriter(
+        writer,
+    ...<2 lines>...
+        engine_kwargs=engine_kwargs,
+    )
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\pandas\io\excel\_base.py", line 1175, in __new__
+    raise ValueError(f"No engine for filetype: '{ext}'") from err
+ValueError: No engine for filetype: 'xlsxx'
+⚠️ Excel导出失败: Command failed: python3 "C:\Users\Administrator\WorkBuddy\zt-dashboard-build\export_excel.py" "C:\Users\Administrator\WorkBuddy\zt-dashboard-build\export_data.json" "C:/Users/Administrator/Desktop/推荐股票.xlsx"
+Traceback (most recent call last):
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\pandas\io\excel\_base.py", line 1171, in __new__
+    engine = config.get_option(f"io.excel.{ext}.writer")
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\pandas\_config\config.py", line 187, in get_option
+    key = _get_single_key(pat)
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\pandas\_config\config.py", line 131, in _get_single_key
+    raise OptionError(f"No such keys(s): {pat!r}")
+pandas.errors.OptionError: No such keys(s): 'io.excel.xlsxx.writer'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Administrator\WorkBuddy\zt-dashboard-build\export_excel.py", line 73, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\Administrator\WorkBuddy\zt-dashboard-build\export_excel.py", line 69, in main
+    df.to_excel(output_xlsx, index=False, sheet_name='推荐股票')
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\pandas\core\generic.py", line 2312, in to_excel
+    formatter.write(
+    ~~~~~~~~~~~~~~~^
+        excel_writer,
+        ^^^^^^^^^^^^^
+    ...<6 lines>...
+        engine_kwargs=engine_kwargs,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\pandas\io\formats\excel.py", line 1003, in write
+    writer = ExcelWriter(
+        writer,
+    ...<2 lines>...
+        engine_kwargs=engine_kwargs,
+    )
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\pandas\io\excel\_base.py", line 1175, in __new__
+    raise ValueError(f"No engine for filetype: '{ext}'") from err
+ValueError: No engine for filetype: 'xlsxx'
+
+
+✅ 看板已生成: C:\Users\Administrator\WorkBuddy\zt-dashboard-build\index.html
+⏱️ 总耗时: 295.3s
+📊 涨停: 21只（候选73只→验证21只） | 连板最高: 5板
