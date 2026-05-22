@@ -294,7 +294,7 @@ function fetchMACD60min(codes) {
   for (let i = 0; i < codes.length; i += 10) {
     const batch = codes.slice(i, i + 10);
     const scriptPath = path.join(__dirname, 'macd_60min.py');
-    const cmd = `python "${scriptPath}" ${batch.join(',')}`;
+    const cmd = `python3 "${scriptPath}" ${batch.join(',')}`;
     const output = runCli(cmd, 120000);
     try {
       const parsed = JSON.parse(output);
@@ -1428,6 +1428,8 @@ async function main() {
     analysis.negativeCodes = negativeCodes;
 
     // Step 6.6: 60分钟MACD分析（零轴金叉 / 底背离）
+    // 注意：当前环境存在代理限制，akshare无法访问东方财富API
+    // MACD分析暂时跳过，待代理环境修复后启用
     let macdMap = {};
     try {
       const allRecCodes = [...new Set([
@@ -1435,7 +1437,7 @@ async function main() {
         ...recLoose.flatMap(c => c.stocks.map(s => s.code)),
       ])];
       if (allRecCodes.length > 0) {
-        macdMap = fetchMACD60min(allRecCodes);
+        console.log(`📊 MACD60min: 代理环境受限，跳过分析（${allRecCodes.length}只推荐股已通过其他维度筛选）`);
       }
     } catch (e) {
       console.error('⚠️ MACD60min分析失败:', e.message);
